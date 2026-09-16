@@ -1,0 +1,35 @@
+# Salin file ini jadi application.properties, lalu isi kredensial punyamu.
+# application.properties sengaja di-gitignore supaya secret tidak ikut ter-commit.
+
+# Application
+spring.application.name=auth-service
+server.port=8081
+# Hormati header X-Forwarded-* dari gateway (spec docs memakai URL gateway, bukan URL service)
+server.forward-headers-strategy=framework
+
+# Database
+spring.datasource.url=jdbc:postgresql://localhost:5432/notenest_db
+spring.datasource.username=notenest
+spring.datasource.password=change-me
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA / Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+# Schema-per-service: tabel service ini hidup di schema sendiri, bukan public
+spring.jpa.properties.hibernate.default_schema=auth_schema
+# Otomatis CREATE SCHEMA IF NOT EXISTS saat startup
+spring.jpa.properties.hibernate.hbm2ddl.create_namespaces=true
+spring.jpa.open-in-view=false
+
+# JWT - nilainya harus SAMA dengan jwt.secret milik api-gateway
+jwt.secret=your-base64-encoded-secret-min-32-bytes
+jwt.expiration=86400000
+
+# Eureka
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+
+# Actuator
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=always
