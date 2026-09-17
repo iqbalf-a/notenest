@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useNoteList } from '../api/hooks'
 import { NoteCard } from '../components/NoteCard'
@@ -10,7 +10,6 @@ const PAGE_SIZE = 12
 export function NotesPage() {
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
-  const tag = params.get('tag') ?? ''
   const page = Number(params.get('page') ?? 0)
 
   const [draft, setDraft] = useState(q)
@@ -33,16 +32,9 @@ export function NotesPage() {
     setParams(merged, { replace: true })
   }
 
-  const { data, isPending, isError, error, refetch, isFetching } = useNoteList({ q, tag, page, size: PAGE_SIZE })
+  const { data, isPending, isError, error, refetch, isFetching } = useNoteList({ q, page, size: PAGE_SIZE })
 
-  // Tidak ada endpoint daftar tag: bangun dari halaman yang sedang dimuat (§1.8 poin 4)
-  const tagOptions = useMemo(() => {
-    const set = new Set(data?.content.flatMap((n) => n.tags) ?? [])
-    if (tag) set.add(tag)
-    return [...set].sort()
-  }, [data, tag])
-
-  const filtering = Boolean(q || tag)
+  const filtering = Boolean(q)
 
   return (
     <>
@@ -70,27 +62,6 @@ export function NotesPage() {
             className="w-full rounded-lg border border-border bg-card py-2.5 pl-9 pr-3 text-[15px] focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/30"
           />
         </label>
-        {tagOptions.length > 0 && (
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Saring berdasarkan tag">
-            {tagOptions.map((option) => {
-              const active = option === tag
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => update({ tag: active ? '' : option, page: '' })}
-                  className={cx(
-                    'rounded-full border px-3 py-1 text-[13px] font-medium',
-                    active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-secondary',
-                  )}
-                >
-                  {option}
-                </button>
-              )
-            })}
-          </div>
-        )}
       </div>
 
       <section className="mt-8" aria-busy={isFetching}>
@@ -104,8 +75,8 @@ export function NotesPage() {
           </StateCard>
         ) : data.content.length === 0 ? (
           filtering ? (
-            <StateCard icon={<SearchIcon />} title="Tidak ada catatan yang cocok" action={<Button variant="secondary" onClick={() => update({ q: '', tag: '', page: '' })}>Hapus pencarian</Button>}>
-              Coba kata lain atau tag lain.
+            <StateCard icon={<SearchIcon />} title="Tidak ada catatan yang cocok" action={<Button variant="secondary" onClick={() => update({ q: '', page: '' })}>Hapus pencarian</Button>}>
+              Coba kata lain.
             </StateCard>
           ) : (
             <StateCard icon={<PenIcon />} title="Belum ada catatan" action={<Link to="/notes/new" className="inline-flex rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lift">Tulis catatan</Link>}>
