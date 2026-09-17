@@ -1,0 +1,82 @@
+@import 'tailwindcss';
+
+/* Tema pastel, terang saja — sumber: docs/FRONTEND-BRIEF.html §2.7.
+   Warna dari prototipe Lovable, font Geist dari ian-portfolio. */
+:root {
+  --background: #f0f5fa;
+  --card: #ffffff;
+  --secondary: #eaf1f8;
+  --foreground: #181f2e;
+  --on-pastel: #3d4659;
+  --muted-foreground: #5b6472; /* Lovable: #737B87 — gagal kontras */
+  --primary: #1e3976;
+  --primary-hover: #172d5e;
+  --primary-foreground: #fcfcfc;
+  --accent: #9ad9ff;
+  --border: #e0e3e6;
+  --danger: #d33944;
+  --danger-text: #b4232f;
+  --danger-soft: #fbe3e4;
+  --note-blue: #6dcffa;
+  --note-pink: #ffb0b2;
+  --note-yellow: #f5df74;
+  --note-mint: #99e4c0;
+  --note-lilac: #d5bdfc;
+  --radius: 0.5rem;
+  --shadow-soft: 0 8px 22px -18px rgb(24 31 46 / 0.35);
+  --shadow-lift: 0 10px 24px -16px rgb(24 31 46 / 0.42);
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: 'Geist', system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-secondary: var(--secondary);
+  --color-foreground: var(--foreground);
+  --color-on-pastel: var(--on-pastel);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-soft: var(--danger-soft);
+  --color-note-blue: var(--note-blue);
+  --color-note-pink: var(--note-pink);
+  --color-note-yellow: var(--note-yellow);
+  --color-note-mint: var(--note-mint);
+  --color-note-lilac: var(--note-lilac);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 3px solid rgb(30 57 118 / 0.35);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
