@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Peta service, ERD, dan endpoint NoteNest.">
+<title>NoteNest Service Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap">
+<style>
+  :root{
+    color-scheme:light;
+    --paper:#F6F3EC; --sheet:#FFFDF8; --sheet-2:#EFEADF;
+    --ink:#1F1D1A; --muted:#6B665C; --rule:#DCD5C6; --rule-soft:#E8E2D5;
+    --action:#2E4A9E; --action-soft:#E1E6F5; --on-action:#FFFFFF;
+    --highlight:#B8920F; --highlight-soft:#FBF1C4; --highlight-ink:#6B5300;
+    --danger:#B3261E; --danger-soft:#F7DEDB;
+    --shadow:0 1px 2px rgba(31,29,26,.06);
+    --font-ui:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --font-read:"Literata",Georgia,serif;
+    --font-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme:dark;
+      --paper:#15140F; --sheet:#1D1B16; --sheet-2:#26231D;
+      --ink:#ECE7DC; --muted:#A39D90; --rule:#3A362D; --rule-soft:#2D2A23;
+      --action:#8FA8F0; --action-soft:#222B45; --on-action:#10131F;
+      --highlight:#E0C04F; --highlight-soft:#3A3319; --highlight-ink:#F0D877;
+      --danger:#F08A80; --danger-soft:#3D1F1C;
+      --shadow:0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --paper:#15140F; --sheet:#1D1B16; --sheet-2:#26231D;
+    --ink:#ECE7DC; --muted:#A39D90; --rule:#3A362D; --rule-soft:#2D2A23;
+    --action:#8FA8F0; --action-soft:#222B45; --on-action:#10131F;
+    --highlight:#E0C04F; --highlight-soft:#3A3319; --highlight-ink:#F0D877;
+    --danger:#F08A80; --danger-soft:#3D1F1C;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.6;padding:0 16px 56px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto}
+  code{font-family:var(--font-mono);font-size:.86em;background:var(--sheet-2);padding:1px 5px;border-radius:3px}
+
+  header.mast{padding:48px 0 30px;border-bottom:1px solid var(--rule);display:flex;flex-wrap:wrap;gap:24px 40px;align-items:flex-end}
+  .mast-main{flex:1 1 440px;min-width:0}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  h1{font-family:var(--font-read);font-weight:600;font-size:clamp(34px,6vw,54px);line-height:1.05;margin:0}
+  .lede{font-family:var(--font-read);font-size:18px;color:var(--muted);margin:14px 0 0;max-width:60ch}
+  dl.facts{flex:0 1 300px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;margin:0;font-family:var(--font-mono)}
+  .facts dt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .facts dd{margin:0;font-size:14px;font-weight:500}
+
+  section{padding:44px 0 0}
+  .sec-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+  .sec-num{font-family:var(--font-mono);font-size:12px;color:var(--action);font-weight:600}
+  h2{font-family:var(--font-ui);font-weight:600;font-size:26px;letter-spacing:-.01em;margin:0}
+  .sec-note{color:var(--muted);max-width:72ch;margin:8px 0 18px}
+
+  .frame{overflow-x:auto;background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);padding:8px}
+  .frame svg{display:block;height:auto}
+  #topology{width:100%;min-width:760px}
+  #erd{width:1100px;min-width:1100px}
+  .scroll-hint{display:none;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  .caption{font-size:13.5px;color:var(--muted);margin:12px 0 0;max-width:80ch}
+
+  /* svg */
+  .t-title{font-family:var(--font-mono);font-size:13px;font-weight:600;fill:var(--ink)}
+  .t-sub{font-family:var(--font-mono);font-size:10.5px;fill:var(--muted)}
+  .t-lane{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;fill:var(--muted)}
+  .t-col{font-family:var(--font-mono);font-size:11.5px;fill:var(--ink)}
+  .t-type{font-family:var(--font-mono);font-size:10px;fill:var(--muted)}
+  .t-edge{font-family:var(--font-mono);font-size:10px;fill:var(--muted)}
+  .t-edge-strong{font-family:var(--font-mono);font-size:10px;font-weight:600;fill:var(--highlight-ink)}
+  .t-badge{font-family:var(--font-mono);font-size:8.5px;font-weight:600}
+  .box{fill:var(--sheet);stroke:var(--rule)}
+  .box-2{fill:var(--sheet-2);stroke:var(--rule)}
+  .box-action{fill:var(--action-soft);stroke:var(--action)}
+  .box-hl{fill:var(--highlight-soft);stroke:var(--highlight)}
+  .lane{fill:none;stroke:var(--rule);stroke-dasharray:4 4}
+  .edge{stroke:var(--muted);fill:none;stroke-width:1.3}
+  .edge-action{stroke:var(--action);fill:none;stroke-width:1.6}
+  .edge-hl{stroke:var(--highlight);fill:none;stroke-width:2}
+  .edge-ref{stroke:var(--highlight);fill:none;stroke-width:1.3;stroke-dasharray:5 4}
+  .edge-block{stroke:var(--danger);fill:none;stroke-width:1.4;stroke-dasharray:3 3}
+  .f-muted{fill:var(--muted)} .f-action{fill:var(--action)} .f-hl{fill:var(--highlight)} .f-danger{fill:var(--danger)}
+  .f-on-action{fill:var(--on-action)}
+  .rowline{stroke:var(--rule-soft)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px 24px;margin:14px 0 0;font-family:var(--font-mono);font-size:11.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:8px}
+  .legend i{display:inline-block;width:26px;border-top:2px solid}
+  .legend i.lg-fk{border-color:var(--action)} .legend i.lg-ref{border-color:var(--highlight)} .legend i.lg-uuid{border-color:var(--highlight);border-top-style:dashed!important} .legend i.lg-block{border-color:var(--danger);border-top-style:dotted!important}
+
+  .flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--rule-soft);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+  .step{background:var(--sheet);padding:16px 18px}
+  .step-n{font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--action);display:block;margin-bottom:6px}
+  .step h3{font-family:var(--font-mono);font-size:12.5px;font-weight:600;margin:0 0 6px}
+  .step p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.5}
+  .step.fail .step-n{color:var(--danger)}
+
+  .svc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  .svc{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+  .svc-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 16px;background:var(--sheet-2);border-bottom:1px solid var(--rule-soft)}
+  .svc-name{font-family:var(--font-mono);font-size:14px;font-weight:600}
+  .svc-port{font-family:var(--font-mono);font-size:11.5px;color:var(--action)}
+  .svc-role{padding:12px 16px 0;font-size:14px;color:var(--muted);margin:0}
+  .svc-schema{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);padding:6px 16px 0;letter-spacing:.04em}
+  ul.routes{list-style:none;margin:12px 0 0;padding:0}
+  ul.routes li{display:flex;gap:10px;align-items:baseline;padding:7px 16px;border-top:1px solid var(--rule-soft);font-family:var(--font-mono);font-size:11.5px;line-height:1.45}
+  .verb{flex:none;min-width:50px;font-weight:600;font-size:10px;color:var(--action)}
+  .verb.del{color:var(--danger)}
+  .path{flex:1;min-width:0;word-break:break-word}
+  .path small{display:block;font-size:10.5px;color:var(--muted);margin-top:1px}
+  .tag{flex:none;align-self:center;font-size:8.5px;font-weight:600;letter-spacing:.05em;padding:2px 5px;border-radius:2px;background:var(--sheet-2);color:var(--muted)}
+  .tag.pub{background:var(--action-soft);color:var(--action)}
+  .tag.own{background:var(--sheet-2);color:var(--ink)}
+  .tag.feign{background:var(--highlight-soft);color:var(--highlight-ink)}
+  .tag.int{background:var(--danger-soft);color:var(--danger)}
+  .svc-foot{margin-top:auto;padding:10px 16px;border-top:1px solid var(--rule-soft);font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+
+  footer.page{margin-top:52px;padding-top:18px;border-top:1px solid var(--rule);font-family:var(--font-mono);font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 22px}
+  @media (max-width:640px){
+    header.mast{padding:34px 0 24px}
+    dl.facts{flex-basis:100%}
+    .scroll-hint{display:block}
+    .flow{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <div class="mast-main">
+    <p class="eyebrow">NoteNest · dibaca dari backend/</p>
+    <h1>NoteNest Service Atlas</h1>
+    <p class="lede">Siapa memiliki data apa, bagaimana tabelnya saling merujuk tanpa foreign key lintas schema, dan satu-satunya perjalanan yang melewati dua service: membagikan catatan.</p>
+  </div>
+  <dl class="facts">
+    <div><dt>Service domain</dt><dd>3</dd></div>
+    <div><dt>Tabel</dt><dd>5 di 3 schema</dd></div>
+    <div><dt>Endpoint publik</dt><dd>15</dd></div>
+    <div><dt>Panggilan Feign</dt><dd>2 endpoint</dd></div>
+  </dl>
+</header>
+
+<!-- ======================= 1. TOPOLOGY ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>Peta service</h2></div>
+  <p class="sec-note">Browser hanya kenal satu alamat: <code>localhost:8080</code>. Semua panah lain terjadi di dalam network Docker.</p>
+  <p class="scroll-hint">Geser ke samping →</p>
+  <div class="frame">
+    <svg id="topology" viewBox="0 0 980 470" role="img" aria-labelledby="topo-t topo-d">
+      <title id="topo-t">Topologi service NoteNest</title>
+      <desc id="topo-d">Browser memanggil API gateway di port 8080. Gateway meneruskan ke auth-service, user-service, dan note-service lewat Eureka. note-service memanggil user-service lewat Feign ke endpoint internal. Gateway menolak path internal dari luar. Ketiga service menyimpan data di satu PostgreSQL dengan schema terpisah.</desc>
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-muted"/></marker>
+        <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-action"/></marker>
+        <marker id="ah-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-hl"/></marker>
+      </defs>
+
+      <!-- lanes -->
+      <text x="20" y="28" class="t-lane">LUAR</text>
+      <text x="236" y="28" class="t-lane">PINTU</text>
+      <text x="490" y="28" class="t-lane">SERVICE DOMAIN</text>
+      <text x="800" y="28" class="t-lane">DATA</text>
+      <rect x="470" y="40" width="300" height="410" rx="10" class="lane"/>
+
+      <!-- browser -->
+      <rect x="20" y="190" width="160" height="64" rx="8" class="box"/>
+      <text x="100" y="218" text-anchor="middle" class="t-title">Browser</text>
+      <text x="100" y="236" text-anchor="middle" class="t-sub">Vite :5173</text>
+
+      <!-- gateway -->
+      <rect x="236" y="172" width="180" height="100" rx="8" class="box-action"/>
+      <text x="326" y="200" text-anchor="middle" class="t-title">api-gateway</text>
+      <text x="326" y="218" text-anchor="middle" class="t-sub">:8080</text>
+      <text x="326" y="240" text-anchor="middle" class="t-sub">JWT · CORS · docs.html</text>
+      <text x="326" y="256" text-anchor="middle" class="t-sub">blok /internal/**</text>
+
+      <!-- eureka -->
+      <rect x="236" y="340" width="180" height="56" rx="8" class="box-2"/>
+      <text x="326" y="364" text-anchor="middle" class="t-title">eureka-server</text>
+      <text x="326" y="381" text-anchor="middle" class="t-sub">:8761 · buku alamat</text>
+
+      <!-- services -->
+      <rect x="500" y="62" width="240" height="72" rx="8" class="box"/>
+      <text x="620" y="90" text-anchor="middle" class="t-title">auth-service :8081</text>
+      <text x="620" y="108" text-anchor="middle" class="t-sub">register · login · terbitkan JWT</text>
+
+      <rect x="500" y="186" width="240" height="72" rx="8" class="box"/>
+      <text x="620" y="214" text-anchor="middle" class="t-title">user-service :8082</text>
+      <text x="620" y="232" text-anchor="middle" class="t-sub">profil · cari user · /internal</text>
+
+      <rect x="500" y="340" width="240" height="72" rx="8" class="box"/>
+      <text x="620" y="368" text-anchor="middle" class="t-title">note-service :8083</text>
+      <text x="620" y="386" text-anchor="middle" class="t-sub">catatan · tag · share</text>
+
+      <!-- postgres -->
+      <rect x="800" y="130" width="160" height="210" rx="8" class="box-2"/>
+      <text x="880" y="158" text-anchor="middle" class="t-title">PostgreSQL</text>
+      <text x="880" y="174" text-anchor="middle" class="t-sub">notenest_db</text>
+      <rect x="816" y="192" width="128" height="30" rx="4" class="box"/><text x="880" y="211" text-anchor="middle" class="t-sub">auth_schema</text>
+      <rect x="816" y="232" width="128" height="30" rx="4" class="box"/><text x="880" y="251" text-anchor="middle" class="t-sub">user_schema</text>
+      <rect x="816" y="272" width="128" height="30" rx="4" class="box"/><text x="880" y="291" text-anchor="middle" class="t-sub">note_schema</text>
+
+      <!-- browser -> gateway -->
+      <path d="M180 222 H232" class="edge-action" marker-end="url(#ah-a)"/>
+      <text x="206" y="212" text-anchor="middle" class="t-edge">Bearer</text>
+
+      <!-- gateway -> services -->
+      <path d="M416 200 C450 200 460 98 496 98" class="edge-action" marker-end="url(#ah-a)"/>
+      <path d="M416 222 H496" class="edge-action" marker-end="url(#ah-a)"/>
+      <path d="M416 244 C450 244 460 376 496 376" class="edge-action" marker-end="url(#ah-a)"/>
+      <text x="380" y="330" class="t-edge">X-User-*</text>
+
+      <!-- gateway <-> eureka -->
+      <path d="M326 272 V336" class="edge" marker-end="url(#ah)"/>
+      <text x="334" y="310" class="t-edge">lb://</text>
+
+      <!-- feign note -> user -->
+      <path d="M680 340 V262" class="edge-hl" marker-end="url(#ah-h)"/>
+      <text x="690" y="298" class="t-edge-strong">Feign</text>
+      <text x="690" y="312" class="t-edge">/internal/users/…</text>
+
+      <!-- blocked internal -->
+      <path d="M100 254 C100 300 150 430 236 430 H470" class="edge-block"/>
+      <text x="250" y="446" class="t-edge">/internal/** dari luar → 403 di gateway</text>
+
+      <!-- services -> db -->
+      <path d="M740 98 C780 98 780 207 812 207" class="edge" marker-end="url(#ah)"/>
+      <path d="M740 222 C776 222 780 247 812 247" class="edge" marker-end="url(#ah)"/>
+      <path d="M740 376 C780 376 780 287 812 287" class="edge" marker-end="url(#ah)"/>
+    </svg>
+  </div>
+  <div class="legend">
+    <span><i class="lg-fk"></i>jalur client (lewat gateway)</span>
+    <span><i class="lg-ref"></i>Feign antar service</span>
+    <span><i class="lg-block"></i>ditolak</span>
+  </div>
+  <p class="caption">Service domain tidak punya port di host. Itulah yang membuat penjagaan <code>/internal/**</code> hanya di gateway cukup untuk lingkungan lokal — dan satu-satunya alasan frontend tidak boleh memanggil 8081–8083 langsung.</p>
+</section>
+
+<!-- ======================= 2. ERD ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>ERD — lima tabel, tiga schema</h2></div>
+  <p class="sec-note">Foreign key sungguhan hanya ada di dalam <code>note_schema</code>. Antar schema, relasinya hanya nilai UUID yang sama — database tidak menjaganya.</p>
+  <p class="scroll-hint">Geser ke samping →</p>
+  <div class="frame">
+    <svg id="erd" viewBox="0 0 1100 470" role="img" aria-labelledby="erd-t erd-d">
+      <title id="erd-t">Diagram relasi tabel NoteNest</title>
+      <desc id="erd-d">auth_schema.users punya id. user_schema.profiles.user_id merujuk users.id tanpa foreign key. note_schema.notes.owner_id merujuk users.id tanpa foreign key. note_tags.note_id dan note_shares.note_id adalah foreign key ke notes.id. note_shares.shared_with_user_id merujuk users.id tanpa foreign key.</desc>
+
+      <!-- schema labels -->
+      <text x="30" y="30" class="t-lane">AUTH_SCHEMA</text>
+      <text x="30" y="270" class="t-lane">USER_SCHEMA</text>
+      <text x="420" y="30" class="t-lane">NOTE_SCHEMA</text>
+      <rect x="400" y="40" width="680" height="410" rx="10" class="lane"/>
+
+      <!-- users -->
+      <g transform="translate(30,42)">
+        <rect width="290" height="196" rx="6" class="box"/>
+        <rect width="290" height="30" rx="6" class="box-action"/>
+        <text x="14" y="20" class="t-title">users</text>
+        <g class="t-col">
+          <text x="14" y="52">id</text><text x="276" y="52" text-anchor="end" class="t-type">uuid · PK</text>
+          <text x="14" y="74">email</text><text x="276" y="74" text-anchor="end" class="t-type">varchar · unique</text>
+          <text x="14" y="96">password_hash</text><text x="276" y="96" text-anchor="end" class="t-type">varchar · BCrypt</text>
+          <text x="14" y="118">display_name</text><text x="276" y="118" text-anchor="end" class="t-type">varchar · klaim "name"</text>
+          <text x="14" y="140">role</text><text x="276" y="140" text-anchor="end" class="t-type">USER | ADMIN</text>
+          <text x="14" y="162">enabled</text><text x="276" y="162" text-anchor="end" class="t-type">boolean</text>
+          <text x="14" y="184">created_at · updated_at</text>
+        </g>
+      </g>
+
+      <!-- profiles -->
+      <g transform="translate(30,282)">
+        <rect width="290" height="174" rx="6" class="box"/>
+        <rect width="290" height="30" rx="6" class="box-action"/>
+        <text x="14" y="20" class="t-title">profiles</text>
+        <g class="t-col">
+          <text x="14" y="52">id</text><text x="276" y="52" text-anchor="end" class="t-type">uuid · PK</text>
+          <text x="14" y="74">user_id</text><text x="276" y="74" text-anchor="end" class="t-type">uuid · unique · ref</text>
+          <text x="14" y="96">email</text><text x="276" y="96" text-anchor="end" class="t-type">salinan token · unique</text>
+          <text x="14" y="118">display_name</text><text x="276" y="118" text-anchor="end" class="t-type">varchar</text>
+          <text x="14" y="140">bio · avatar_url</text><text x="276" y="140" text-anchor="end" class="t-type">≤500 · ≤255</text>
+          <text x="14" y="162">created_at · updated_at</text>
+        </g>
+      </g>
+
+      <!-- notes -->
+      <g transform="translate(430,150)">
+        <rect width="270" height="152" rx="6" class="box"/>
+        <rect width="270" height="30" rx="6" class="box-action"/>
+        <text x="14" y="20" class="t-title">notes</text>
+        <g class="t-col">
+          <text x="14" y="52">id</text><text x="256" y="52" text-anchor="end" class="t-type">uuid · PK</text>
+          <text x="14" y="74">owner_id</text><text x="256" y="74" text-anchor="end" class="t-type">uuid · ref · index</text>
+          <text x="14" y="96">title</text><text x="256" y="96" text-anchor="end" class="t-type">varchar · ≤200</text>
+          <text x="14" y="118">content</text><text x="256" y="118" text-anchor="end" class="t-type">text · null</text>
+          <text x="14" y="140">created_at · updated_at</text>
+        </g>
+      </g>
+
+      <!-- note_tags -->
+      <g transform="translate(790,62)">
+        <rect width="270" height="86" rx="6" class="box"/>
+        <rect width="270" height="30" rx="6" class="box-2"/>
+        <text x="14" y="20" class="t-title">note_tags</text>
+        <g class="t-col">
+          <text x="14" y="52">note_id</text><text x="256" y="52" text-anchor="end" class="t-type">uuid · FK</text>
+          <text x="14" y="74">tag</text><text x="256" y="74" text-anchor="end" class="t-type">lowercase · index</text>
+        </g>
+      </g>
+
+      <!-- note_shares -->
+      <g transform="translate(790,228)">
+        <rect width="270" height="196" rx="6" class="box"/>
+        <rect width="270" height="30" rx="6" class="box-hl"/>
+        <text x="14" y="20" class="t-title">note_shares</text>
+        <g class="t-col">
+          <text x="14" y="52">id</text><text x="256" y="52" text-anchor="end" class="t-type">uuid · PK</text>
+          <text x="14" y="74">note_id</text><text x="256" y="74" text-anchor="end" class="t-type">uuid · FK</text>
+          <text x="14" y="96">shared_with_user_id</text><text x="256" y="96" text-anchor="end" class="t-type">uuid · ref</text>
+          <text x="14" y="118">shared_with_email</text><text x="256" y="118" text-anchor="end" class="t-type">snapshot</text>
+          <text x="14" y="140">permission</text><text x="256" y="140" text-anchor="end" class="t-type">READ</text>
+          <text x="14" y="162">created_at · updated_at</text>
+          <text x="14" y="184" class="t-type">unique (note_id, shared_with_user_id)</text>
+        </g>
+      </g>
+
+      <!-- FK edges (solid action) -->
+      <path d="M700 196 C745 196 745 136 786 136" class="edge-action"/>
+      <text x="712" y="160" class="t-edge">1 — n</text>
+      <path d="M700 196 C745 196 745 322 786 322" class="edge-action"/>
+      <text x="712" y="268" class="t-edge">1 — n</text>
+
+      <!-- refs (dashed highlight) -->
+      <!-- profiles.user_id -> users.id -->
+      <path d="M26 356 C10 356 10 94 26 94" class="edge-ref"/>
+      <text x="330" y="440" class="t-edge">note_shares.shared_with_user_id juga merujuk users.id (tanpa FK)</text>
+      <!-- notes.owner_id -> users.id -->
+      <path d="M426 224 C370 224 370 94 324 94" class="edge-ref"/>
+      <text x="336" y="160" class="t-edge">owner_id</text>
+    </svg>
+  </div>
+  <div class="legend">
+    <span><i class="lg-fk"></i>foreign key sungguhan</span>
+    <span><i class="lg-uuid"></i>rujukan UUID lintas schema, tanpa FK</span>
+  </div>
+  <p class="caption"><code>note_tags</code> tidak punya id karena tag bukan entity (<code>@ElementCollection</code>). <code>shared_with_email</code> disalin saat share dibuat, jadi daftar penerima tidak perlu bertanya ke user-service. Kolom lengkap ada di <code>docs/schema.sql</code>.</p>
+</section>
+
+<!-- ======================= 3. SHARE JOURNEY ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Perjalanan satu share</h2></div>
+  <p class="sec-note"><code>POST /api/notes/{id}/share</code> dengan body <code>{"targetEmail":"budi@example.com"}</code>, token milik Ani.</p>
+  <div class="flow">
+    <div class="step"><span class="step-n">01 · GATEWAY</span><h3>Token dibuka</h3><p>Signature dan expiry dicek. <code>X-User-Id</code> = id Ani, header palsu dari client ditimpa. Tanpa token: <b>401</b>.</p></div>
+    <div class="step"><span class="step-n">02 · NOTE-SERVICE</span><h3>Catatan dicari</h3><p><code>findById</code>. Tidak ada: <b>404</b>.</p></div>
+    <div class="step"><span class="step-n">03 · NOTE-SERVICE</span><h3>Pemilik dicek</h3><p><code>ownerId</code> ≠ Ani: <b>403</b> — <i>sebelum</i> Feign, supaya endpoint ini tidak bisa dipakai menebak email terdaftar.</p></div>
+    <div class="step"><span class="step-n">04 · FEIGN → USER-SERVICE</span><h3>Email → userId</h3><p><code>GET /internal/users/by-email</code>. Tidak terdaftar: <b>404</b> yang jelas. Service mati / timeout 5 detik: <b>502</b>.</p></div>
+    <div class="step"><span class="step-n">05 · NOTE-SERVICE</span><h3>Aturan share</h3><p>Target = Ani sendiri: <b>400</b>. Sudah pernah di-share: kembalikan yang lama, tanpa duplikat.</p></div>
+    <div class="step"><span class="step-n">06 · NOTE-SERVICE</span><h3>Snapshot disimpan</h3><p><code>note_shares</code> dengan <code>shared_with_email</code> dan <code>READ</code>. <b>201</b>. Budi kini lolos cek di <code>GET /api/notes/{id}</code> dengan <code>owned: false</code>.</p></div>
+  </div>
+</section>
+
+<!-- ======================= 4. ENDPOINTS ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Fitur per service</h2></div>
+  <p class="sec-note">Semua lewat <code>http://localhost:8080</code>. Label: <span class="tag pub">PUBLIK</span> tanpa token · <span class="tag">LOGIN</span> token saja · <span class="tag own">PEMILIK</span> 403 kalau bukan · <span class="tag feign">FEIGN</span> memanggil service lain · <span class="tag int">INTERNAL</span> ditolak dari luar.</p>
+
+  <div class="svc-grid">
+    <article class="svc">
+      <div class="svc-top"><span class="svc-name">auth-service</span><span class="svc-port">:8081</span></div>
+      <p class="svc-role">Satu-satunya penerbit token. Tidak memanggil service lain — bahkan saat register.</p>
+      <div class="svc-schema">schema <b>auth_schema</b> · users</div>
+      <ul class="routes">
+        <li><span class="verb">POST</span><span class="path">/api/auth/register<small>{displayName, email, password} → token · 409 email terpakai</small></span><span class="tag pub">PUBLIK</span></li>
+        <li><span class="verb">POST</span><span class="path">/api/auth/login<small>{email, password} → token · 401 salah</small></span><span class="tag pub">PUBLIK</span></li>
+        <li><span class="verb">GET</span><span class="path">/api/auth/validate<small>200 kalau token masih hidup</small></span><span class="tag">LOGIN</span></li>
+      </ul>
+      <div class="svc-foot">klaim token: sub=email · userId · name · role · exp 24 jam</div>
+    </article>
+
+    <article class="svc">
+      <div class="svc-top"><span class="svc-name">user-service</span><span class="svc-port">:8082</span></div>
+      <p class="svc-role">Profil dibuat saat <code>/me</code> pertama kali dipanggil, dari header gateway. Menjawab "siapa pemilik email ini" untuk note-service.</p>
+      <div class="svc-schema">schema <b>user_schema</b> · profiles</div>
+      <ul class="routes">
+        <li><span class="verb">GET</span><span class="path">/api/users/me<small>find-or-create profil</small></span><span class="tag">LOGIN</span></li>
+        <li><span class="verb">PUT</span><span class="path">/api/users/me<small>{displayName, bio?, avatarUrl?}</small></span><span class="tag">LOGIN</span></li>
+        <li><span class="verb">GET</span><span class="path">/api/users/search?email=<small>cocok sebagian · maks 10 · tanpa diri sendiri</small></span><span class="tag">LOGIN</span></li>
+        <li><span class="verb">GET</span><span class="path">/internal/users/{id}</span><span class="tag int">INTERNAL</span></li>
+        <li><span class="verb">GET</span><span class="path">/internal/users/by-email?email=</span><span class="tag int">INTERNAL</span></li>
+      </ul>
+      <div class="svc-foot">belum pernah memanggil /me = tidak bisa ditemukan untuk share</div>
+    </article>
+
+    <article class="svc">
+      <div class="svc-top"><span class="svc-name">note-service</span><span class="svc-port">:8083</span></div>
+      <p class="svc-role">Semua aturan akses tinggal di sini. Baca: pemilik atau penerima share. Selebihnya: pemilik saja.</p>
+      <div class="svc-schema">schema <b>note_schema</b> · notes · note_tags · note_shares</div>
+      <ul class="routes">
+        <li><span class="verb">POST</span><span class="path">/api/notes<small>{title, content?, tags?}</small></span><span class="tag">LOGIN</span></li>
+        <li><span class="verb">GET</span><span class="path">/api/notes<small>?q= &amp;tag= &amp;page= &amp;size= &amp;sort=updatedAt,desc</small></span><span class="tag">LOGIN</span></li>
+        <li><span class="verb">GET</span><span class="path">/api/notes/shared-with-me<small>semua sekaligus · + ownerEmail, ownerDisplayName</small></span><span class="tag feign">FEIGN</span></li>
+        <li><span class="verb">GET</span><span class="path">/api/notes/{id}<small>pemilik atau penerima · owned true/false</small></span><span class="tag own">AKSES</span></li>
+        <li><span class="verb">PUT</span><span class="path">/api/notes/{id}<small>tag diganti seluruhnya</small></span><span class="tag own">PEMILIK</span></li>
+        <li><span class="verb del">DELETE</span><span class="path">/api/notes/{id}<small>share ikut terhapus</small></span><span class="tag own">PEMILIK</span></li>
+        <li><span class="verb">GET</span><span class="path">/api/notes/{id}/shares<small>dari snapshot, tanpa Feign</small></span><span class="tag own">PEMILIK</span></li>
+        <li><span class="verb">POST</span><span class="path">/api/notes/{id}/share<small>{targetEmail} · 404 · 400 · 502</small></span><span class="tag feign">FEIGN</span></li>
+        <li><span class="verb del">DELETE</span><span class="path">/api/notes/{id}/share/{userId}<small>userId dari daftar shares</small></span><span class="tag own">PEMILIK</span></li>
+      </ul>
+      <div class="svc-foot">timeout Feign: connect 3 dtk · read 5 dtk</div>
+    </article>
+  </div>
+</section>
+
+<footer class="page">
+  <span>NoteNest · FRONTEND-SERVICE-ATLAS</span>
+  <span>Sumber: backend/*/entity, controller, NoteServiceImpl, JwtAuthFilter, docker-compose.yml</span>
+  <span>Lihat juga: FRONTEND-BRIEF.html · schema.sql</span>
+</footer>
+
+</div>
+</body>
+</html>
