@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="PRD dan design system frontend NoteNest.">
+<title>Frontend NoteNest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+<style>
+  /* Tema pastel, terang saja. Warna dari prototipe Lovable (OKLCH → hex), font Geist dari ian-portfolio,
+     dengan dua penyesuaian kontras: --muted-foreground dan --danger-text. */
+  :root{
+    color-scheme:light;
+    --background:#F0F5FA;
+    --card:#FFFFFF;
+    --secondary:#EAF1F8;
+    --foreground:#181F2E;
+    --muted-foreground:#5B6472;
+    --on-pastel:#3D4659;
+    --primary:#1E3976;
+    --primary-hover:#172D5E;
+    --primary-foreground:#FCFCFC;
+    --accent:#9AD9FF;
+    --border:#E0E3E6;
+    --danger:#D33944;
+    --danger-text:#B4232F;
+    --danger-soft:#FBE3E4;
+    --note-blue:#6DCFFA;
+    --note-pink:#FFB0B2;
+    --note-yellow:#F5DF74;
+    --note-mint:#99E4C0;
+    --note-lilac:#D5BDFC;
+    --ring:0 0 0 3px rgba(30,57,118,.30);
+    --shadow-soft:0 8px 22px -18px rgba(24,31,46,.35);
+    --shadow-lift:0 10px 24px -16px rgba(24,31,46,.42);
+    --radius:8px; --radius-xl:12px; --radius-pill:999px;
+    --font-display:"Geist",system-ui,sans-serif;
+    --font-sans:"Geist",system-ui,sans-serif;
+    --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;padding:0 16px 64px}
+  .wrap{max-width:1080px;margin:0 auto}
+  a{color:var(--primary)}
+  code,kbd{font-family:var(--font-mono);font-size:.86em}
+  p code,li code,td code{background:var(--secondary);padding:1px 5px;border-radius:4px}
+
+  header.mast{padding:52px 0 30px;border-bottom:1px solid var(--border)}
+  .eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-foreground);margin:0 0 12px}
+  h1{font-family:var(--font-display);font-weight:600;letter-spacing:-.02em;font-size:clamp(36px,6vw,54px);line-height:1.1;margin:0}
+  .lede{font-size:18px;color:var(--muted-foreground);max-width:60ch;margin:16px 0 0}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;font-size:13.5px}
+  nav.toc a{text-decoration:none;color:var(--foreground);background:var(--card);border:1px solid var(--border);border-radius:var(--radius-pill);padding:4px 12px;box-shadow:var(--shadow-soft)}
+  nav.toc a:hover{border-color:var(--primary);color:var(--primary)}
+
+  .part{padding:56px 0 12px;border-bottom:2px solid var(--foreground);margin-bottom:8px}
+  .part .eyebrow{margin-bottom:6px}
+  .part h2{font-family:var(--font-display);font-weight:600;font-size:38px;margin:0;line-height:1.15}
+  .part p{color:var(--muted-foreground);max-width:66ch;margin:10px 0 0}
+  section{padding:38px 0 0}
+  h3{font-family:var(--font-display);font-weight:600;font-size:22px;margin:0 0 12px}
+  h3 .n{font-family:var(--font-sans);font-size:13px;color:var(--primary);margin-right:10px;font-weight:600}
+  h4{font-size:15px;font-weight:600;margin:22px 0 8px}
+  section > p, section > ul, section > ol{max-width:72ch}
+  li{margin:3px 0}
+
+  .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:14px 0}
+  .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:14px 0}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:16px 18px;box-shadow:var(--shadow-soft)}
+  .card h5{margin:0 0 6px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);font-weight:600}
+  .card p{margin:0}
+  .note-callout,.warn-callout{padding:14px 18px;border-radius:var(--radius-xl);margin:16px 0;max-width:78ch;color:var(--foreground)}
+  .note-callout{background:#DCEBF7;border:1px solid #BFD6EC}
+  .warn-callout{background:#FBF3CF;border:1px solid #EFDC8C}
+  .note-callout b,.warn-callout b{display:block;margin-bottom:4px}
+  .note-callout p,.warn-callout p{margin:0}
+
+  .table-wrap{overflow-x:auto;margin:14px 0;border:1px solid var(--border);border-radius:var(--radius-xl);background:var(--card);box-shadow:var(--shadow-soft)}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-foreground);background:var(--secondary)}
+  tr:last-child td{border-bottom:0}
+  td.mono{font-family:var(--font-mono);font-size:12.5px;white-space:nowrap}
+  .verdict{font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill)}
+  .v-yes{background:var(--note-mint);color:var(--foreground)}
+  .v-later{background:var(--secondary);color:var(--muted-foreground)}
+  .v-no{background:var(--danger-soft);color:var(--danger-text)}
+
+  pre{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:14px 16px;overflow-x:auto;font-family:var(--font-mono);font-size:12.8px;line-height:1.55;margin:14px 0}
+  pre .c{color:var(--muted-foreground)}
+
+  .gap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:14px 18px;margin:12px 0;max-width:80ch;box-shadow:var(--shadow-soft)}
+  .gap h5{margin:0 0 6px;font-size:15px}
+  .gap h5 .num{color:var(--muted-foreground);margin-right:8px;font-weight:500}
+  .gap p{margin:4px 0 0}
+  .gap.bite{border-left:4px solid var(--danger)}
+
+  /* ================= design system demo ================= */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:14px 0}
+  .sw{border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;background:var(--card);box-shadow:var(--shadow-soft)}
+  .sw i{display:block;height:60px}
+  .sw span{display:block;padding:8px 10px;font-family:var(--font-mono);font-size:11.5px}
+  .sw small{display:block;font-family:var(--font-sans);color:var(--muted-foreground);font-size:11.5px}
+
+  .type-row{display:grid;grid-template-columns:170px 1fr;gap:6px 18px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--border)}
+  .type-row .meta{font-family:var(--font-mono);font-size:11.5px;color:var(--muted-foreground)}
+  @media (max-width:560px){.type-row{grid-template-columns:1fr}}
+
+  .demo{background:var(--background);border:1px dashed #C9D3DE;border-radius:16px;padding:22px;margin:14px 0;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+
+  .btn{font-family:var(--font-sans);font-size:14px;font-weight:600;border-radius:var(--radius);padding:10px 16px;border:1px solid transparent;cursor:pointer;line-height:1.2}
+  .btn:focus-visible{outline:none;box-shadow:var(--ring)}
+  .btn-primary{background:var(--primary);color:var(--primary-foreground);box-shadow:var(--shadow-lift)}
+  .btn-primary:hover{background:var(--primary-hover)}
+  .btn-secondary{background:var(--card);color:var(--foreground);border-color:var(--border)}
+  .btn-secondary:hover{background:var(--secondary)}
+  .btn-danger{background:var(--card);color:var(--danger-text);border-color:#F1C2C5}
+  .btn-danger:hover{background:var(--danger-soft)}
+  .btn[disabled]{opacity:.55;cursor:not-allowed}
+
+  .field{display:flex;flex-direction:column;gap:5px;min-width:240px;flex:1 1 240px}
+  .field label{font-size:13px;font-weight:600}
+  .field input{font:inherit;color:var(--foreground);background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}
+  .field input:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring)}
+  .field .hint{font-size:12.5px;color:var(--muted-foreground)}
+  .field.invalid input{border-color:var(--danger)}
+  .field.invalid .hint{color:var(--danger-text)}
+  .field .count{font-size:11.5px;color:var(--muted-foreground);align-self:flex-end}
+
+  /* kartu catatan pastel */
+  .note-card{position:relative;border-radius:var(--radius-xl);padding:18px 20px 16px;width:300px;max-width:100%;box-shadow:var(--shadow-soft);color:var(--foreground);border:1px solid transparent}
+  .note-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
+  @media (prefers-reduced-motion:no-preference){.note-card{transition:transform .15s,box-shadow .15s}}
+  .note-card h6{font-family:var(--font-display);font-size:17px;font-weight:600;margin:0 0 6px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .note-card p{font-size:14px;color:var(--on-pastel);margin:0 0 14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+  .note-card p.empty{font-style:italic}
+  .note-card footer{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;color:var(--on-pastel)}
+  .bg-blue{background:var(--note-blue)} .bg-pink{background:var(--note-pink)} .bg-yellow{background:var(--note-yellow)}
+  .bg-mint{background:var(--note-mint)} .bg-lilac{background:var(--note-lilac)}
+  .icon-tile{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:var(--radius);background:rgba(255,255,255,.7);margin-bottom:12px;font-size:15px}
+  .note-card.borrowed{border:2px dashed rgba(24,31,46,.45)}
+  .owner-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--foreground);background:rgba(255,255,255,.85);padding:3px 10px;border-radius:var(--radius-pill);margin-bottom:10px}
+
+  .tags{display:flex;flex-wrap:wrap;gap:4px}
+  .tags span{font-size:11.5px;font-weight:500;color:var(--foreground);background:rgba(255,255,255,.6);padding:1px 8px;border-radius:var(--radius-pill)}
+  .tags.on-white span{background:var(--secondary)}
+
+  .avatar{width:34px;height:34px;border-radius:50%;display:inline-grid;place-items:center;font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--foreground);flex:none}
+
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:16px;width:380px;max-width:100%;box-shadow:var(--shadow-lift);overflow:hidden}
+  .panel .hd{padding:14px 18px;border-bottom:1px solid var(--border);font-family:var(--font-display);font-weight:600}
+  .panel .bd{padding:14px 18px}
+  .person{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)}
+  .person:first-child{border-top:0}
+  .person .who{flex:1;min-width:0}
+  .person .who b{display:block;font-size:14px;font-weight:600}
+  .person .who span{display:block;font-size:12.5px;color:var(--muted-foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .linkish{background:none;border:0;padding:0;font:inherit;font-size:13px;font-weight:600;color:var(--danger-text);cursor:pointer}
+
+  .toast{display:flex;gap:10px;align-items:flex-start;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-left:4px solid var(--danger);border-radius:var(--radius-xl);padding:12px 14px;font-size:14px;max-width:360px;box-shadow:var(--shadow-lift)}
+  .empty-state{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;text-align:center;width:320px;max-width:100%;box-shadow:var(--shadow-soft)}
+  .empty-state .icon-tile{background:var(--note-lilac)}
+  .empty-state b{font-family:var(--font-display);font-weight:600;font-size:18px;display:block;margin-bottom:6px}
+  .empty-state p{color:var(--muted-foreground);font-size:14px;margin:0 0 14px}
+  .skel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:18px 20px;width:300px;max-width:100%}
+  .skel i{display:block;height:12px;border-radius:6px;background:var(--secondary);margin:8px 0}
+  @media (prefers-reduced-motion:no-preference){
+    .skel i{animation:pulse 2s cubic-bezier(.4,0,.6,1) infinite}
+    @keyframes pulse{50%{opacity:.5}}
+  }
+
+  footer.page{margin-top:60px;padding-top:18px;border-top:1px solid var(--border);font-size:12.5px;color:var(--muted-foreground);display:flex;flex-wrap:wrap;gap:6px 22px}
+</style>
+</head>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">NoteNest · paket frontend · dibaca dari backend/</p>
+  <h1>Frontend NoteNest</h1>
+  <p class="lede">Buku catatan pribadi yang halamannya bisa dipinjamkan untuk dibaca. Dokumen ini menjelaskan apa yang dibangun, sampai batas mana, bagaimana dummy data ditukar dengan API asli, dan seperti apa wujudnya.</p>
+  <nav class="toc" aria-label="Daftar isi">
+    <a href="#p1">1 · PRD</a><a href="#s16">1.6 Kontrak API</a><a href="#s18">1.8 Celah backend</a>
+    <a href="#p2">2 · Design system</a><a href="#s25">2.5 Komponen</a><a href="#s27">2.7 File token</a>
+  </nav>
+</header>
+
+<!-- ============================ PART 1 ============================ -->
+<div class="part" id="p1">
+  <p class="eyebrow">Bagian 1</p>
+  <h2>PRD</h2>
+  <p>Apa yang dibangun, untuk siapa, dan sampai batas mana.</p>
+</div>
+
+<section>
+  <h3><span class="n">1.1</span>Tujuan</h3>
+  <p>NoteNest hari ini adalah API tanpa wajah. Frontend ini mengubahnya jadi produk yang bisa dipahami dalam dua menit oleh orang yang tidak akan pernah membaca kode Java-nya.</p>
+  <div class="grid-3">
+    <div class="card"><h5>Tujuan utama</h5><p>Satu alur utuh: tulis catatan → cari &amp; filter → bagikan ke teman → teman membacanya → cabut akses.</p></div>
+    <div class="card"><h5>Tujuan kedua</h5><p>Menunjukkan frontend paham batas backend: identitas dari token, <code>owned</code> menentukan aksi, 401 dan 403 diperlakukan berbeda.</p></div>
+    <div class="card"><h5>Bukan tujuan</h5><p>Bukan Notion. Tanpa rich text, tanpa edit bersama, tanpa realtime, tanpa folder.</p></div>
+  </div>
+</section>
+
+<section>
+  <h3><span class="n">1.2</span>Keputusan: folder <code>frontend/</code> di repo yang sama</h3>
+  <p>ShopNest memilih repo terpisah. NoteNest tidak, karena alasan yang berbeda:</p>
+  <ul>
+    <li><b>Proyek ini ada supaya frontend-nya selesai.</b> Satu repo membuat portfolio utuh bisa dibaca dari satu tautan.</li>
+    <li><b>Kontrak API kecil dan bisa berubah bersama UI.</b> Perubahan DTO dan tipe TypeScript-nya masuk di commit yang sama, jadi tidak bisa melenceng diam-diam.</li>
+    <li><b>Toolchain tetap terpisah secara fisik.</b> Semua modul Maven ada di <code>backend/</code>; Node hanya hidup di <code>frontend/</code>. <code>.gitignore</code> root sudah mengenal <code>node_modules/</code> dan <code>dist/</code>.</li>
+  </ul>
+  <h4>Struktur yang disarankan</h4>
+<pre>frontend/
+├─ src/
+│  ├─ api/          client.ts, types.ts, hooks — satu-satunya yang tahu soal HTTP
+│  ├─ mocks/        handler MSW + data dummy (fase 1)
+│  ├─ features/     auth/ notes/ shared/ share-panel/ profile/
+│  ├─ components/   primitif: Button, Field, NoteCard, Tags, Avatar, EmptyState
+│  ├─ lib/          format tanggal, session storage
+│  ├─ styles/       tokens.css — hasil §2.7
+│  └─ routes/
+├─ .env.example     VITE_API_BASE_URL=   (kosong = MSW)
+└─ README.md</pre>
+</section>
+
+<section>
+  <h3><span class="n">1.3</span>Framework: React + TypeScript + Vite</h3>
+  <p>Pertanyaan sebenarnya adalah "perlu server rendering atau tidak". Gateway mengautentikasi lewat header <code>Authorization: Bearer</code>, bukan cookie — server Next.js tidak bisa membaca token di browser tanpa memindahkannya ke cookie, yang berarti mengubah gateway. Semua halaman NoteNest juga butuh login, jadi SEO tidak relevan.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Kandidat</th><th>Yang didapat</th><th>Yang dibayar</th><th>Putusan</th></tr></thead>
+    <tbody>
+      <tr><td><b>React + Vite + TS</b></td><td>Build statis, tanpa runtime tambahan. Ekosistem terbesar untuk form dan query cache.</td><td>Tidak ada SEO — tidak dibutuhkan.</td><td><span class="verdict v-yes">PAKAI</span></td></tr>
+      <tr><td>Next.js</td><td>SSR, route handler.</td><td>Runtime Node di depan gateway; auth harus pindah ke cookie.</td><td><span class="verdict v-later">NANTI</span></td></tr>
+      <tr><td>Vue / Nuxt</td><td>Sama mampunya.</td><td>Tidak ada keunggulan khusus di sini.</td><td><span class="verdict v-later">SETARA</span></td></tr>
+    </tbody>
+  </table></div>
+  <h4>Paket pendamping</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Paket</th><th>Untuk apa</th><th>Kenapa</th></tr></thead>
+    <tbody>
+      <tr><td>TanStack Query</td><td>Ambil data, cache, invalidasi</td><td>Setelah share/cabut/ubah, beberapa query harus disegarkan bersamaan — <code>invalidateQueries</code> membuatnya satu baris.</td></tr>
+      <tr><td>React Router</td><td>Rute + guard</td><td>Satu wrapper yang membaca token cukup.</td></tr>
+      <tr><td>MSW</td><td>Dummy data fase 1</td><td>Mencegat di lapisan jaringan (§1.7).</td></tr>
+      <tr><td>Tailwind CSS v4</td><td>Styling</td><td>Sama dengan prototipe Lovable; token pastel dipetakan lewat <code>@theme</code> (§2.7).</td></tr>
+      <tr><td>Zod</td><td>Validasi form</td><td>Meniru aturan <code>@Valid</code> backend persis (§1.6).</td></tr>
+    </tbody>
+  </table></div>
+  <p>Tidak ada state manager global. Data server milik Query; satu-satunya state klien adalah token dan profil ringkas — cukup Context + <code>localStorage</code>.</p>
+</section>
+
+<section>
+  <h3><span class="n">1.4</span>Scope v1</h3>
+  <div class="grid-2">
+    <div class="card"><h5>Masuk v1</h5>
+      <ul style="margin:0;padding-left:18px">
+        <li>Daftar, masuk, keluar, sesi tersimpan</li>
+        <li>Catatan saya: daftar, pagination, cari teks, filter tag</li>
+        <li>Tulis, ubah, hapus catatan dengan tag</li>
+        <li>Bagikan ke email, cari user, lihat &amp; cabut penerima</li>
+        <li>Dibagikan ke saya: daftar + detail hanya baca</li>
+        <li>Profil: nama tampilan, bio, URL avatar</li>
+      </ul></div>
+    <div class="card"><h5>Ditunda — belum ada endpoint</h5>
+      <ul style="margin:0;padding-left:18px">
+        <li>Edit oleh penerima — hanya <code>READ</code></li>
+        <li>Rich text / markdown — kolom teks polos</li>
+        <li>Daftar semua tag — tidak ada endpoint</li>
+        <li>Cari di catatan pinjaman — tidak didukung</li>
+        <li>Ubah password / email, lupa password</li>
+        <li>Upload avatar — hanya string URL</li>
+        <li>Notifikasi share — tidak realtime</li>
+      </ul></div>
+  </div>
+</section>
+
+<section>
+  <h3><span class="n">1.5</span>Halaman &amp; rute</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Rute</th><th>Halaman</th><th>Akses</th><th>Endpoint</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">/login</td><td>Masuk</td><td>Publik</td><td class="mono">POST /api/auth/login</td></tr>
+      <tr><td class="mono">/register</td><td>Daftar</td><td>Publik</td><td class="mono">POST /api/auth/register</td></tr>
+      <tr><td class="mono">/notes</td><td>Catatan saya — cari, filter tag, pagination</td><td>Login</td><td class="mono">GET /api/notes</td></tr>
+      <tr><td class="mono">/notes/new</td><td>Tulis catatan</td><td>Login</td><td class="mono">POST /api/notes</td></tr>
+      <tr><td class="mono">/notes/:id</td><td>Detail — tampilan tergantung <code>owned</code></td><td>Pemilik / penerima</td><td class="mono">GET · DELETE /api/notes/{id}</td></tr>
+      <tr><td class="mono">/notes/:id/edit</td><td>Ubah catatan</td><td>Pemilik</td><td class="mono">PUT /api/notes/{id}</td></tr>
+      <tr><td class="mono">(panel di /notes/:id)</td><td>Bagikan</td><td>Pemilik</td><td class="mono">GET /{id}/shares · GET /api/users/search · POST /{id}/share · DELETE /{id}/share/{userId}</td></tr>
+      <tr><td class="mono">/shared</td><td>Dibagikan ke saya</td><td>Login</td><td class="mono">GET /api/notes/shared-with-me</td></tr>
+      <tr><td class="mono">/profile</td><td>Profil</td><td>Login</td><td class="mono">GET · PUT /api/users/me</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note-callout"><b>Rute edit harus dijaga di klien juga.</b><p>Membuka <code>/notes/:id/edit</code> untuk catatan pinjaman tidak berbahaya — <code>PUT</code> akan dibalas 403 — tapi pengguna akan mengisi form yang pasti gagal. Muat catatan dulu; kalau <code>owned</code> false, arahkan ke <code>/notes/:id</code>.</p></div>
+  <h4>Setelah login dan register</h4>
+  <ol>
+    <li>Simpan <code>accessToken</code>, <code>userId</code>, <code>email</code>, <code>displayName</code> dari <code>AuthResponse</code>.</li>
+    <li><b>Langsung panggil <code>GET /api/users/me</code></b> — ini yang membuat baris profil. Tanpa langkah ini, pengguna tidak bisa ditemukan orang lain untuk dibagikan catatan (§1.8 poin 2).</li>
+    <li>Arahkan ke <code>/notes</code>.</li>
+  </ol>
+</section>
+
+<section id="s16">
+  <h3><span class="n">1.6</span>Kontrak API yang harus ditiru</h3>
+  <p>Data dummy harus berbentuk persis seperti data asli, sampai ke nama field dan bungkusnya. Semua di bawah disalin dari DTO backend.</p>
+  <h4>Amplop response — seragam, termasuk error dari gateway</h4>
+<pre>type ApiResponse&lt;T&gt; = {
+  success: boolean
+  message: string          <span class="c">// "Notes found", "Invalid or expired token", …</span>
+  data: T | null           <span class="c">// null saat error, kecuali validasi (lihat bawah)</span>
+}
+
+type PageResponse&lt;T&gt; = {  <span class="c">// hanya GET /api/notes</span>
+  content: T[]; page: number; size: number
+  totalElements: number; totalPages: number; last: boolean
+}</pre>
+  <h4>Tipe domain</h4>
+<pre>type AuthResponse = {
+  accessToken: string; tokenType: "Bearer"
+  userId: string; email: string; displayName: string
+  role: "USER" | "ADMIN"      <span class="c">// selalu USER dari register; tidak dipakai UI</span>
+}
+
+type Note = {
+  id: string; ownerId: string
+  title: string
+  content: string | null
+  tags: string[]              <span class="c">// lowercase, sudah di-trim, tanpa duplikat</span>
+  owned: boolean              <span class="c">// SATU-SATUNYA penentu tombol aksi</span>
+  ownerEmail: string | null        <span class="c">// terisi hanya di shared-with-me</span>
+  ownerDisplayName: string | null  <span class="c">// terisi hanya di shared-with-me</span>
+  createdAt: string; updatedAt: string   <span class="c">// "2026-09-17T10:14:03.221" — TANPA zona</span>
+}
+
+type Share = {
+  id: string; noteId: string
+  sharedWithUserId: string    <span class="c">// dipakai untuk DELETE /{id}/share/{userId}</span>
+  sharedWithEmail: string
+  permission: "READ"
+  createdAt: string
+}
+
+type UserSummary = { userId: string; email: string; displayName: string }
+
+type Profile = {
+  id: string; userId: string; email: string; displayName: string
+  bio: string | null; avatarUrl: string | null
+  createdAt: string; updatedAt: string
+}</pre>
+  <h4>Request</h4>
+<pre>POST /api/auth/register   { displayName, email, password }
+POST /api/auth/login      { email, password }
+PUT  /api/users/me        { displayName, bio?, avatarUrl? }
+POST /api/notes           { title, content?, tags?: string[] }
+PUT  /api/notes/{id}      { title, content?, tags?: string[] }   <span class="c">// tag DIGANTI seluruhnya</span>
+POST /api/notes/{id}/share { targetEmail }
+
+GET  /api/notes?q=&amp;tag=&amp;page=0&amp;size=10&amp;sort=updatedAt,desc
+GET  /api/users/search?email=ani</pre>
+  <h4>Status dan perlakuannya di UI</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Status</th><th>Kapan</th><th><code>data</code></th><th>Perlakuan</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">200/201</td><td>Sukses. <code>DELETE</code> membalas <b>200</b> dengan <code>data: null</code>, bukan 204</td><td>hasil</td><td>—</td></tr>
+      <tr><td class="mono">400</td><td>Validasi <code>@Valid</code></td><td><code>Record&lt;field, pesan&gt;</code></td><td>Tempel di bawah field-nya</td></tr>
+      <tr><td class="mono">400</td><td>Share ke diri sendiri</td><td>null</td><td>Inline di kolom email panel bagikan</td></tr>
+      <tr><td class="mono">401</td><td>Login salah</td><td>null</td><td>Pesan inline di form login</td></tr>
+      <tr><td class="mono">401</td><td>Token tidak ada / salah / kedaluwarsa (dari gateway)</td><td>null</td><td>Hapus sesi → <code>/login</code>, simpan rute tujuan</td></tr>
+      <tr><td class="mono">403</td><td>Bukan pemilik / penerima</td><td>null</td><td><b>Jangan logout.</b> Pesan + kembali ke daftar</td></tr>
+      <tr><td class="mono">404</td><td>Catatan tidak ada</td><td>null</td><td>Halaman kosong dengan jalan keluar</td></tr>
+      <tr><td class="mono">404</td><td>Email tujuan share tidak terdaftar</td><td>null</td><td>Inline: "Belum ada pengguna NoteNest dengan email ini"</td></tr>
+      <tr><td class="mono">409</td><td>Email sudah terdaftar</td><td>null</td><td>Inline di field email</td></tr>
+      <tr><td class="mono">502</td><td>user-service tak terjangkau (share, shared-with-me)</td><td>null</td><td>"Sedang ada gangguan" + coba lagi. Bukan kesalahan input</td></tr>
+      <tr><td class="mono">503</td><td>Gateway belum menemukan service (baru start)</td><td>—</td><td>Sama seperti 502</td></tr>
+      <tr><td class="mono">500</td><td>Lainnya</td><td>null</td><td>Pesan umum; jangan tampilkan <code>message</code> mentah</td></tr>
+    </tbody>
+  </table></div>
+  <h4>Aturan validasi — tiru persis di Zod</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Form</th><th>Aturan backend</th></tr></thead>
+    <tbody>
+      <tr><td>register</td><td><code>displayName</code> wajib, ≤ 60 · <code>email</code> wajib + format · <code>password</code> wajib, ≥ 8</td></tr>
+      <tr><td>login</td><td><code>email</code> wajib + format · <code>password</code> wajib</td></tr>
+      <tr><td>catatan</td><td><code>title</code> wajib, ≤ 200 · <code>content</code> ≤ 20.000 · <code>tags</code> ≤ 10 item, tiap item tidak kosong, ≤ 30</td></tr>
+      <tr><td>bagikan</td><td><code>targetEmail</code> wajib + format</td></tr>
+      <tr><td>profil</td><td><code>displayName</code> wajib, ≤ 60 · <code>bio</code> ≤ 500 · <code>avatarUrl</code> ≤ 255 (format URL <b>tidak</b> dicek backend)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h3><span class="n">1.7</span>Strategi dummy data</h3>
+  <p>Prinsipnya satu: <b>komponen tidak boleh tahu bahwa datanya palsu.</b> Satu <code>if (isMock)</code> di dalam komponen berarti pekerjaan ulang saat penyambungan.</p>
+<pre><span class="c">// src/mocks/handlers.ts — cegat di lapisan jaringan</span>
+http.get("*/api/notes", ({ request }) =&gt; {
+  const me = userFromAuthHeader(request)          <span class="c">// tiru gateway: 401 kalau tidak ada</span>
+  if (!me) return HttpResponse.json(
+    { success: false, message: "Missing or invalid Authorization header", data: null },
+    { status: 401 })
+  const url = new URL(request.url)
+  <span class="c">// filter owner → tag → q, lalu sort + potong halaman</span>
+  return HttpResponse.json({ success: true, message: "Notes found", data: page })
+})</pre>
+  <h4>Isi data dummy yang layak</h4>
+  <ul>
+    <li><b>Tiga akun</b> — Ani, Budi, Citra — supaya share bisa diuji dari dua sisi. Sediakan cara cepat berganti akun di mode dev.</li>
+    <li><b>25–30 catatan milik Ani</b> — cukup untuk tiga halaman dengan <code>size=10</code>.</li>
+    <li>Judul 200 karakter persis; isi kosong (<code>null</code>); isi 20.000 karakter; isi dengan banyak baris baru.</li>
+    <li>Catatan tanpa tag, dengan 1 tag, dan dengan 10 tag.</li>
+    <li><b>Budi menerima 4 catatan</b> dari Ani dan Citra — cukup untuk menguji label pemilik berbeda.</li>
+    <li>Citra <b>tidak</b> ada di hasil cari sampai "login pertama" — tiru aturan profil lazy.</li>
+    <li>Handler yang bisa dipaksa gagal (<code>?__fail=502</code>) untuk menguji keadaan error.</li>
+  </ul>
+  <h4>Penukaran ke API asli</h4>
+  <ol>
+    <li>Isi <code>VITE_API_BASE_URL=http://localhost:8080</code>.</li>
+    <li>Matikan pendaftaran worker MSW di <code>main.tsx</code>.</li>
+    <li>Pastikan origin dev ada di <code>CORS_ALLOWED_ORIGINS</code> gateway.</li>
+    <li>Ulangi alur penuh dengan dua akun; selisih bentuk response berarti §1.6 yang salah, bukan komponennya.</li>
+  </ol>
+  <p>Handler MSW tidak dibuang — pindahkan ke test komponen.</p>
+</section>
+
+<section id="s18">
+  <h3><span class="n">1.8</span>Celah backend yang mempengaruhi frontend</h3>
+  <p>Ditemukan saat membaca kode. Tidak satu pun menghalangi fase dummy, tapi semuanya muncul di hari penyambungan. Urut dari yang paling pasti menggigit.</p>
+
+  <div class="gap bite"><h5><span class="num">1</span>Urutan default catatan terbalik</h5>
+    <p><code>@PageableDefault(size = 10, sort = "updatedAt")</code> tanpa arah = <b>naik</b>. Tanpa parameter, catatan paling lama muncul paling atas. Selalu kirim <code>sort=updatedAt,desc</code>. MSW harus meniru default yang salah ini juga, supaya lupa mengirim parameter ketahuan sejak fase dummy.</p></div>
+
+  <div class="gap bite"><h5><span class="num">2</span>Pengguna tidak bisa ditemukan sebelum profilnya ada</h5>
+    <p>Register tidak membuat profil; <code>GET /api/users/me</code> yang membuatnya. Pencarian user dan share membaca tabel profil. Akibatnya: teman yang baru mendaftar tapi belum pernah memicu <code>/me</code> tidak bisa dibagikan catatan — share membalas 404. Frontend menutup sebagian besar kasus dengan memanggil <code>/me</code> tepat setelah login/register (§1.5).</p></div>
+
+  <div class="gap bite"><h5><span class="num">3</span><code>shared-with-me</code> gagal total kalau satu pemilik hilang</h5>
+    <p>Untuk tiap catatan, note-service menanyakan pemiliknya ke user-service. Kalau satu pemilik tidak punya profil, seluruh daftar dibalas 404 — bukan satu item yang kosong. Jarang terjadi setelah poin 2 ditangani, tapi tampilkan sebagai error umum dengan coba lagi, bukan "tidak ditemukan".</p></div>
+
+  <div class="gap"><h5><span class="num">4</span>Tidak ada endpoint daftar tag</h5>
+    <p>Filter tag dibangun dari tag di halaman yang sedang dimuat, digabung dengan tag yang pernah diketik pengguna. Jangan janjikan "semua tag".</p></div>
+
+  <div class="gap"><h5><span class="num">5</span><code>shared-with-me</code> tanpa pagination, pencarian, atau filter</h5>
+    <p>Semua dikirim sekaligus, urut dari yang terakhir dibagikan. Kalau perlu cari, lakukan di klien atas data yang sudah dimuat — dan beri label jelas bahwa itu hanya menyaring daftar di layar.</p></div>
+
+  <div class="gap"><h5><span class="num">6</span>Nama di token bisa basi</h5>
+    <p><code>displayName</code> di <code>AuthResponse</code> berasal dari tabel auth dan tidak ikut berubah saat profil diubah. Setelah <code>PUT /api/users/me</code>, perbarui nama di state klien dari response profil, bukan dari token.</p></div>
+
+  <div class="gap"><h5><span class="num">7</span>Tidak ada refresh token</h5>
+    <p>Token berlaku 24 jam (<code>jwt.expiration=86400000</code>). Setelah itu 401 — rancang sebagai "sesi habis, masuk lagi". Simpan draf catatan yang sedang ditulis di <code>localStorage</code> supaya tidak hilang saat sesi habis di tengah menulis.</p></div>
+
+  <div class="gap"><h5><span class="num">8</span>Perubahan tidak realtime</h5>
+    <p>Penerima baru melihat perubahan atau pencabutan akses setelah memuat ulang. Aktifkan <code>refetchOnWindowFocus</code> untuk query catatan pinjaman; kalau detail tiba-tiba 403, akses sudah dicabut — tampilkan pesan itu dengan jelas.</p></div>
+</section>
+
+<section>
+  <h3><span class="n">1.9</span>Definition of done &amp; urutan kerja</h3>
+  <div class="grid-2">
+    <div class="card"><h5>Selesai berarti</h5>
+      <ul style="margin:0;padding-left:18px">
+        <li>Setiap halaman punya empat wajah: memuat, kosong, gagal, terisi</li>
+        <li>Semua tanggal lewat satu fungsi format</li>
+        <li>Form menolak input yang pasti ditolak backend</li>
+        <li>401 mengakhiri sesi dengan bersih; 403 tidak</li>
+        <li>Tidak ada tombol aksi pada catatan dengan <code>owned: false</code></li>
+        <li>Terbaca di 375px, editor termasuk</li>
+        <li>Kontras ≥ 4.5 : 1, termasuk teks di atas kartu pastel; keyboard bisa menjangkau semua aksi</li>
+      </ul></div>
+    <div class="card"><h5>Urutan</h5>
+      <ol style="margin:0;padding-left:20px">
+        <li><b>Fondasi</b> — Vite, token §2.7, primitif, layout</li>
+        <li><b>Sesi</b> — login/daftar, guard, panggil <code>/me</code></li>
+        <li><b>Catatan saya</b> — MSW, daftar, cari, tag, pagination</li>
+        <li><b>Editor</b> — tulis, ubah, hapus, draf lokal</li>
+        <li><b>Berbagi</b> — panel, cari user, cabut; tampilan pinjaman</li>
+        <li><b>Profil</b></li>
+        <li><b>Sambungkan</b> — CORS, matikan MSW, uji dua akun termasuk 403 dan 502</li>
+      </ol></div>
+  </div>
+</section>
+
+<!-- ============================ PART 2 ============================ -->
+<div class="part" id="p2">
+  <p class="eyebrow">Bagian 2</p>
+  <h2>Design system</h2>
+  <p>Tema pastel, terang saja. Warna diambil dari prototipe Lovable, font dari ian-portfolio. Halaman ini memakai token yang didefinisikannya — yang terlihat di bawah adalah hasil nyatanya.</p>
+</div>
+
+<section>
+  <h3><span class="n">2.1</span>Tiga prinsip</h3>
+  <div class="grid-3">
+    <div class="card"><h5>Warna milik catatan</h5><p>Latar dan UI tetap tenang: biru keabuan muda, putih, navy. Warna pastel hanya dipakai kartu catatan, supaya warnanya berarti "ini isimu".</p></div>
+    <div class="card"><h5>Teks gelap di atas pastel</h5><p>Abu-abu biasa gagal kontras di semua pastel (2.4–3.2 : 1). Di atas kartu, teks selalu navy <code>--foreground</code> atau <code>--on-pastel</code>.</p></div>
+    <div class="card"><h5>Pinjaman ditandai bentuk</h5><p>Kelima pastel sudah dipakai kartu, jadi catatan pinjaman tidak bisa ditandai warna. Penandanya garis putus-putus dan chip "dibagikan oleh…".</p></div>
+  </div>
+</section>
+
+<section>
+  <h3><span class="n">2.2</span>Tipografi — Geist</h3>
+  <p>Satu keluarga untuk semuanya, sama dengan ian-portfolio. Hierarki dibangun dari ukuran dan berat, bukan dari font kedua. Hanya berat 400, 500, dan 600 yang dimuat — jangan pakai <code>font-bold</code> (700), browser akan memalsukannya.</p>
+  <div class="type-row"><span class="meta">600 · 48/1.1 · -0.02em<br>hero, judul halaman</span><span style="font-weight:600;font-size:48px;line-height:1.1;letter-spacing:-.02em">Catatan saya</span></div>
+  <div class="type-row"><span class="meta">600 · 28/1.25 · -0.01em<br>judul catatan (detail)</span><span style="font-weight:600;font-size:28px;line-height:1.25;letter-spacing:-.01em">Rapat mingguan tim produk</span></div>
+  <div class="type-row"><span class="meta">600 · 17/1.35<br>judul kartu</span><span style="font-weight:600;font-size:17px">Resep sambal matah</span></div>
+  <div class="type-row"><span class="meta">400 · 16/1.7<br>isi catatan</span><span style="font-size:16px;line-height:1.7">Bahas roadmap Q3. Fitur share sudah jalan di backend, tinggal frontend-nya.</span></div>
+  <div class="type-row"><span class="meta">600 · 14<br>tombol, label</span><span style="font-weight:600;font-size:14px">Bagikan catatan</span></div>
+  <div class="type-row"><span class="meta">500 · 12<br>tag, chip</span><span class="tags on-white"><span>kerja</span><span>rapat</span><span>q3</span></span></div>
+  <div class="type-row"><span class="meta">400 · 13<br>metadata</span><span style="font-size:13px;color:var(--muted-foreground)">Diubah 12 menit lalu</span></div>
+<pre>&lt;link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet"&gt;</pre>
+  <p>Isi catatan selalu <code>white-space: pre-wrap</code> dengan lebar baca maksimal <code>68ch</code>. Email dan id boleh memakai mono sistem; Geist Mono tidak dimuat.</p>
+</section>
+
+<section>
+  <h3><span class="n">2.3</span>Warna</h3>
+  <h4>Pastel catatan</h4>
+  <div class="swatches">
+    <div class="sw"><i style="background:var(--note-blue)"></i><span>#6DCFFA<small>--note-blue</small></span></div>
+    <div class="sw"><i style="background:var(--note-pink)"></i><span>#FFB0B2<small>--note-pink</small></span></div>
+    <div class="sw"><i style="background:var(--note-yellow)"></i><span>#F5DF74<small>--note-yellow</small></span></div>
+    <div class="sw"><i style="background:var(--note-mint)"></i><span>#99E4C0<small>--note-mint</small></span></div>
+    <div class="sw"><i style="background:var(--note-lilac)"></i><span>#D5BDFC<small>--note-lilac</small></span></div>
+  </div>
+  <h4>Dasar</h4>
+  <div class="swatches">
+    <div class="sw"><i style="background:var(--background)"></i><span>#F0F5FA<small>--background · latar</small></span></div>
+    <div class="sw"><i style="background:var(--card);border-bottom:1px solid var(--border)"></i><span>#FFFFFF<small>--card · panel, input</small></span></div>
+    <div class="sw"><i style="background:var(--secondary)"></i><span>#EAF1F8<small>--secondary · hover</small></span></div>
+    <div class="sw"><i style="background:var(--foreground)"></i><span>#181F2E<small>--foreground · teks</small></span></div>
+    <div class="sw"><i style="background:var(--on-pastel)"></i><span>#3D4659<small>--on-pastel · teks kedua di kartu</small></span></div>
+    <div class="sw"><i style="background:var(--muted-foreground)"></i><span>#5B6472<small>--muted-foreground</small></span></div>
+    <div class="sw"><i style="background:var(--primary)"></i><span>#1E3976<small>--primary · aksi</small></span></div>
+    <div class="sw"><i style="background:var(--border)"></i><span>#E0E3E6<small>--border</small></span></div>
+    <div class="sw"><i style="background:var(--danger)"></i><span>#D33944<small>--danger · garis/ikon</small></span></div>
+    <div class="sw"><i style="background:var(--danger-text)"></i><span>#B4232F<small>--danger-text · teks</small></span></div>
+  </div>
+
+  <h4>Warna kartu ditentukan dari id, bukan disimpan</h4>
+  <p>Backend tidak punya kolom warna. Supaya satu catatan selalu tampil dengan warna yang sama — di daftar, detail, dan di layar penerima share — warnanya diturunkan dari <code>id</code>:</p>
+<pre>const NOTE_COLORS = ["blue", "pink", "yellow", "mint", "lilac"] as const
+
+export function noteColor(id: string) {
+  let h = 0
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) &gt;&gt;&gt; 0
+  return NOTE_COLORS[h % NOTE_COLORS.length]   <span class="c">// → class "bg-note-" + warna</span>
+}</pre>
+  <p>Jangan menurunkan warna dari tag atau judul: keduanya bisa diubah, dan kartu yang tiba-tiba berganti warna setelah disunting terasa seperti bug.</p>
+
+  <h4>Kontras yang sudah diperiksa</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Teks</th><th>blue</th><th>pink</th><th>yellow</th><th>mint</th><th>lilac</th><th>putih</th><th>latar</th></tr></thead>
+    <tbody>
+      <tr><td><code>--foreground</code> #181F2E</td><td>9.4</td><td>9.5</td><td>12.3</td><td>11.2</td><td>9.8</td><td>16.5</td><td>15.0</td></tr>
+      <tr><td><code>--on-pastel</code> #3D4659</td><td>5.4</td><td>5.5</td><td>7.1</td><td>6.4</td><td>5.6</td><td>9.5</td><td>8.6</td></tr>
+      <tr><td><code>--muted-foreground</code> #5B6472</td><td colspan="5">jangan di atas pastel</td><td>6.0</td><td>5.5</td></tr>
+      <tr><td>abu Lovable #737B87 ✗</td><td>2.4</td><td>2.5</td><td>3.2</td><td>2.9</td><td>2.6</td><td>4.3</td><td>3.9</td></tr>
+      <tr><td>putih di atas <code>--primary</code></td><td colspan="7">11.0</td></tr>
+    </tbody>
+  </table></div>
+  <p>Dua nilai dari Lovable diganti karena gagal 4.5 : 1: abu <code>#737B87</code> jadi <code>#5B6472</code>, dan teks merah memakai <code>#B4232F</code> (merah <code>#D33944</code> tetap untuk garis dan ikon).</p>
+</section>
+
+<section>
+  <h3><span class="n">2.4</span>Bentuk &amp; bayangan</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Token</th><th>Nilai</th><th>Dipakai</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">spasi</td><td>4 · 8 · 12 · 16 · 20 · 24 · 32 · 48</td><td>kelipatan 4</td></tr>
+      <tr><td class="mono">--radius</td><td>8px</td><td>tombol, input, ikon</td></tr>
+      <tr><td class="mono">--radius-xl</td><td>12px</td><td>kartu catatan, tabel</td></tr>
+      <tr><td class="mono">16px</td><td>—</td><td>panel, dialog, keadaan kosong</td></tr>
+      <tr><td class="mono">--radius-pill</td><td>999px</td><td>tag, chip pemilik</td></tr>
+      <tr><td class="mono">--shadow-soft</td><td>0 8px 22px -18px navy 35%</td><td>kartu diam</td></tr>
+      <tr><td class="mono">--shadow-lift</td><td>0 10px 24px -16px navy 42%</td><td>hover, tombol utama, panel</td></tr>
+    </tbody>
+  </table></div>
+  <p>Bayangan memakai navy dengan spread negatif, bukan hitam — terasa seperti kartu melayang tipis, bukan kotak berbayang.</p>
+</section>
+
+<section id="s25">
+  <h3><span class="n">2.5</span>Komponen</h3>
+
+  <h4>Tombol</h4>
+  <div class="demo">
+    <button class="btn btn-primary">Buat akun gratis</button>
+    <button class="btn btn-secondary">Sudah punya akun</button>
+    <button class="btn btn-danger">Hapus catatan</button>
+    <button class="btn btn-primary" disabled>Menyimpan…</button>
+  </div>
+  <p>Satu tombol primer per layar. Hapus tidak pernah blok merah penuh.</p>
+
+  <h4>Field</h4>
+  <div class="demo">
+    <div class="field"><label for="d-title">Judul</label><input id="d-title" value="Rapat mingguan tim produk"><span class="count">26 / 200</span></div>
+    <div class="field invalid"><label for="d-mail">Email tujuan</label><input id="d-mail" value="hantu@example.com"><span class="hint">Belum ada pengguna NoteNest dengan email ini</span></div>
+  </div>
+
+  <h4>Kartu catatan</h4>
+  <div class="demo">
+    <article class="note-card bg-blue">
+      <h6>Rapat mingguan tim produk</h6>
+      <p>Bahas roadmap Q3.
+- API share sudah jalan
+- Frontend mulai minggu depan</p>
+      <footer><span class="tags"><span>kerja</span><span>rapat</span></span><span>12 menit lalu</span></footer>
+    </article>
+    <article class="note-card bg-mint">
+      <h6>Ide judul skripsi</h6>
+      <p class="empty">Tidak ada isi</p>
+      <footer><span class="tags"></span><span>14 Sep</span></footer>
+    </article>
+    <article class="note-card bg-pink borrowed">
+      <span class="owner-chip"><span aria-hidden="true">↗</span>dibagikan oleh Ani · hanya baca</span>
+      <h6>Resep sambal matah</h6>
+      <p>Bawang merah, serai, cabai rawit, daun jeruk, minyak kelapa panas.</p>
+      <footer><span class="tags"><span>masak</span></span><span>Kemarin</span></footer>
+    </article>
+  </div>
+  <p>Judul maks 2 baris, isi maks 3 baris. Tag berupa pil putih transparan di atas pastel — bukan pil berwarna, karena kartunya sudah berwarna. Kartu pinjaman: <b>garis putus-putus navy + chip putih</b>, warnanya tetap dari <code>noteColor(id)</code>.</p>
+
+  <h4>Panel bagikan</h4>
+  <div class="demo">
+    <div class="panel" role="group" aria-label="Contoh panel bagikan">
+      <div class="hd">Bagikan “Rapat mingguan”</div>
+      <div class="bd">
+        <div class="field" style="min-width:0"><label for="d-find">Cari berdasarkan email</label><input id="d-find" value="bud"></div>
+        <div style="margin-top:10px">
+          <div class="person"><span class="avatar" style="background:var(--note-yellow)">B</span><span class="who"><b>Budi Santoso</b><span>budi@example.com</span></span><button class="btn btn-secondary" style="padding:7px 12px;font-size:13px">Bagikan</button></div>
+        </div>
+        <h4 style="margin:18px 0 4px;font-size:12px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.08em">Bisa membaca</h4>
+        <div class="person"><span class="avatar" style="background:var(--note-lilac)">C</span><span class="who"><b>citra@example.com</b><span>sejak 15 Sep</span></span><button class="linkish">Cabut</button></div>
+      </div>
+    </div>
+  </div>
+  <p>Avatar = huruf pertama di atas pastel yang diturunkan dari <code>userId</code> dengan fungsi yang sama seperti kartu.</p>
+
+  <h4>Keadaan</h4>
+  <div class="demo">
+    <div class="empty-state"><span class="icon-tile" aria-hidden="true">✎</span><b>Belum ada catatan</b><p>Tulis hal pertama yang ingin kamu ingat.</p><button class="btn btn-primary">Tulis catatan</button></div>
+    <div class="empty-state"><span class="icon-tile" aria-hidden="true" style="background:var(--note-mint)">↗</span><b>Belum ada yang membagikan</b><p>Kalau teman membagikan catatan ke emailmu, catatan itu muncul di sini — hanya untuk dibaca.</p></div>
+    <div class="skel" aria-label="Memuat"><i style="width:70%;height:16px"></i><i></i><i style="width:85%"></i><i style="width:40%"></i></div>
+    <div class="toast" role="status">Layanan sedang bermasalah. Catatan belum dibagikan — coba lagi sebentar.</div>
+  </div>
+</section>
+
+<section>
+  <h3><span class="n">2.6</span>Responsif &amp; aksesibilitas</h3>
+  <ul>
+    <li><b>≥ 960px:</b> header dengan navigasi (<i>Catatan saya</i>, <i>Dibagikan ke saya</i>, <i>Profil</i>), grid kartu 3 kolom, panel bagikan di kanan detail.</li>
+    <li><b>&lt; 640px:</b> daftar satu kolom, panel bagikan layar penuh, tombol simpan editor menempel di bawah.</li>
+    <li>Tema <b>terang saja</b>. Jangan pasang <code>prefers-color-scheme: dark</code> sampai tema gelap didesain.</li>
+    <li>Kontras ≥ 4.5 : 1 — ikuti tabel §2.3. Garis putus-putus dan chip teks adalah penanda pinjaman, bukan warna.</li>
+    <li>Fokus selalu terlihat (<code>--ring</code>). Dialog hapus menjebak fokus dan mengembalikannya ke pemicu.</li>
+    <li>Hormati <code>prefers-reduced-motion</code>: matikan angkat-kartu dan animasi kerangka.</li>
+  </ul>
+</section>
+
+<section id="s27">
+  <h3><span class="n">2.7</span>File token siap pakai</h3>
+  <p>Proyek Lovable memakai Tailwind v4, jadi token ditulis sebagai CSS variable + <code>@theme</code>. Salin ke <code>frontend/src/styles/tokens.css</code>.</p>
+<pre>@import "tailwindcss";
+
+:root {
+  --background: #F0F5FA;
+  --card: #FFFFFF;
+  --secondary: #EAF1F8;
+  --foreground: #181F2E;
+  --on-pastel: #3D4659;
+  --muted-foreground: #5B6472;   <span class="c">/* Lovable: #737B87 — gagal kontras */</span>
+  --primary: #1E3976;
+  --primary-foreground: #FCFCFC;
+  --accent: #9AD9FF;
+  --border: #E0E3E6;
+  --danger: #D33944;
+  --danger-text: #B4232F;
+  --note-blue: #6DCFFA;
+  --note-pink: #FFB0B2;
+  --note-yellow: #F5DF74;
+  --note-mint: #99E4C0;
+  --note-lilac: #D5BDFC;
+  --radius: 0.5rem;
+  --shadow-soft: 0 8px 22px -18px rgb(24 31 46 / .35);
+  --shadow-lift: 0 10px 24px -16px rgb(24 31 46 / .42);
+}
+
+@theme inline {
+  --font-sans: "Geist", system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-secondary: var(--secondary);
+  --color-foreground: var(--foreground);
+  --color-on-pastel: var(--on-pastel);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-note-blue: var(--note-blue);
+  --color-note-pink: var(--note-pink);
+  --color-note-yellow: var(--note-yellow);
+  --color-note-mint: var(--note-mint);
+  --color-note-lilac: var(--note-lilac);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+}
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }</pre>
+</section>
+
+<footer class="page">
+  <span>NoteNest · FRONTEND-BRIEF</span>
+  <span>Sumber: backend/*/dto, controller, GlobalExceptionHandler, api-gateway JwtAuthFilter</span>
+  <span>Lihat juga: FRONTEND-SERVICE-ATLAS.html · DESIGN-HANDOVER.md</span>
+</footer>
+
+</div>
+</body>
+</html>

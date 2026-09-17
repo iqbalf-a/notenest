@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+    <title>NoteNest API Documentation</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+</head>
+<body>
+    <div id="app"></div>
+
+    <!-- Scalar UI - dimuat browser dari CDN, membaca spec dari rute /docs/specs/* -->
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script>
+        Scalar.createApiReference('#app', {
+            sources: [
+                { url: '/docs/specs/auth',  title: 'Auth Service' },
+                { url: '/docs/specs/users', title: 'User Service' },
+                { url: '/docs/specs/notes', title: 'Note Service' }
+            ]
+        })
+    </script>
+</body>
+</html>

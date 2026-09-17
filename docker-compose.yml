@@ -23,7 +23,7 @@ services:
       retries: 5
 
   eureka-server:
-    build: ./eureka-server               # build dari Dockerfile di folder itu
+    build: ./backend/eureka-server               # build dari Dockerfile di folder itu
     container_name: notenest-eureka
     restart: unless-stopped
     ports:
@@ -32,19 +32,19 @@ services:
       - notenest-network
 
   config-server:
-    build: ./config-server
+    build: ./backend/config-server
     container_name: notenest-config
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: native,docker
     volumes:
       # config-repo di-mount, bukan di-copy ke image: ubah config tidak perlu rebuild.
-      - ./config-repo:/config-repo:ro
+      - ./backend/config-repo:/config-repo:ro
     networks:
       - notenest-network
 
   auth-service:
-    build: ./auth-service
+    build: ./backend/auth-service
     container_name: notenest-auth
     restart: unless-stopped
     environment:
@@ -63,7 +63,7 @@ services:
       - notenest-network
 
   user-service:
-    build: ./user-service
+    build: ./backend/user-service
     container_name: notenest-user
     restart: unless-stopped
     environment:
@@ -81,7 +81,7 @@ services:
       - notenest-network
 
   note-service:
-    build: ./note-service
+    build: ./backend/note-service
     container_name: notenest-note
     restart: unless-stopped
     environment:
@@ -102,7 +102,7 @@ services:
       - notenest-network
 
   api-gateway:
-    build: ./api-gateway
+    build: ./backend/api-gateway
     container_name: notenest-gateway
     restart: unless-stopped
     ports:

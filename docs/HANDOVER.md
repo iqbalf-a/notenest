@@ -1,8 +1,8 @@
 # NoteNest — Handover: Membangun BE (mengikuti pola ShopNest)
 
-Dokumen ini adalah blueprint untuk membangun backend **NoteNest** — aplikasi notes dengan fitur sharing, dibangun dengan arsitektur microservices yang sama persis dengan [`shopnest`](../shopnest), tapi domain lebih kecil (3 service domain, bukan 4) supaya realistis diselesaikan sebagai portfolio piece.
+Dokumen ini adalah blueprint untuk membangun backend **NoteNest** — aplikasi notes dengan fitur sharing, dibangun dengan arsitektur microservices yang sama persis dengan [`shopnest`](../../shopnest), tapi domain lebih kecil (3 service domain, bukan 4) supaya realistis diselesaikan sebagai portfolio piece.
 
-> Referensi struktur nyata: [`shopnest/auth-service`](../shopnest/auth-service), [`shopnest/order-service`](../shopnest/order-service) (contoh service dengan Feign client), [`shopnest/api-gateway`](../shopnest/api-gateway), [`shopnest/docs/BUILD-ORDER.md`](../shopnest/docs/BUILD-ORDER.md) (filosofi urutan membangun).
+> Referensi struktur nyata: [`shopnest/auth-service`](../../shopnest/auth-service), [`shopnest/order-service`](../../shopnest/order-service) (contoh service dengan Feign client), [`shopnest/api-gateway`](../../shopnest/api-gateway), [`shopnest/docs/BUILD-ORDER.md`](../../shopnest/docs/BUILD-ORDER.md) (filosofi urutan membangun).
 
 ---
 

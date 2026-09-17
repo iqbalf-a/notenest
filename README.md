@@ -86,11 +86,16 @@ Yang terbuka ke host hanya:
 
 Service domain **tidak** punya port ke host. Itu disengaja: satu-satunya cara menyentuh mereka dari luar adalah lewat gateway.
 
+Dokumentasi API interaktif (Scalar): **http://localhost:8080/docs.html** — ketiga service dalam satu halaman, bisa langsung mengirim request.
+
+Langkah verifikasi end-to-end dengan dua akun: [`docs/DOCKER-STEPS.md`](docs/DOCKER-STEPS.md#bagian-4--verifikasi-end-to-end).
+
 ### Manual (dari IDE)
 
 Tiap service butuh `application.properties` miliknya sendiri, yang sengaja **di-gitignore** karena berisi kredensial. Salin dari template:
 
 ```bash
+cd backend
 cp auth-service/src/main/resources/application.properties.example auth-service/src/main/resources/application.properties
 cp user-service/src/main/resources/application.properties.example user-service/src/main/resources/application.properties
 cp note-service/src/main/resources/application.properties.example note-service/src/main/resources/application.properties
@@ -104,9 +109,9 @@ Urutan menyalakan: `eureka-server` → `auth-service` → `api-gateway` → `use
 ### Test
 
 ```bash
-cd auth-service && ./mvnw test   # 4 test
-cd user-service && ./mvnw test   # 6 test
-cd note-service && ./mvnw test   # 19 test
+cd backend/auth-service && ./mvnw test   # 4 test
+cd backend/user-service && ./mvnw test   # 6 test
+cd backend/note-service && ./mvnw test   # 19 test (14 service + 5 repository)
 ```
 
 Sebagian besar adalah unit test service-layer dengan Mockito — tidak butuh database maupun service lain yang hidup. Yang paling penting ada di `NoteServiceImplTest`: pelanggaran kepemilikan (403), dan jalur error Feign saat note di-share ke email yang tidak terdaftar (404 dari `user-service` diterjemahkan jadi pesan yang berarti, bukan `FeignException` mentah).
@@ -155,7 +160,7 @@ Semua lewat gateway (`http://localhost:8080`). Semua response memakai amplop yan
 | `POST` | `/api/notes/{id}/share` | `{targetEmail}` — memicu Feign ke user-service |
 | `DELETE` | `/api/notes/{id}/share/{userId}` | Cabut akses. Pemilik saja. |
 
-Spec OpenAPI tiap service: `/docs/specs/auth`, `/docs/specs/users`, `/docs/specs/notes`.
+Dokumentasi interaktif: `/docs.html` (Scalar). Spec OpenAPI mentah tiap service: `/docs/specs/auth`, `/docs/specs/users`, `/docs/specs/notes`.
 
 ---
 
@@ -212,15 +217,30 @@ Share ke email yang tidak terdaftar → `UserNotFoundException` → 404 dengan p
 
 ```
 notenest/
-├── eureka-server/        :8761
-├── config-server/        :8888
-├── config-repo/          config bersama yang di-serve config-server
-├── api-gateway/          :8080  — JwtAuthFilter, CorsConfig, routing
-├── auth-service/         :8081  — entity/User, security/*, service/AuthService
-├── user-service/         :8082  — entity/Profile, controller/{User,InternalUser}Controller
-├── note-service/         :8083  — entity/{Note,NoteShare}, client/UserClient (Feign)
-├── docker-compose.yml
-└── HANDOVER.md           blueprint awal proyek ini
+├── backend/
+│   ├── eureka-server/    :8761
+│   ├── config-server/    :8888
+│   ├── config-repo/      config bersama yang di-serve config-server
+│   ├── api-gateway/      :8080  — JwtAuthFilter, CorsConfig, routing, static/docs.html (Scalar)
+│   ├── auth-service/     :8081  — entity/User, security/*, service/AuthService
+│   ├── user-service/     :8082  — entity/Profile, controller/{User,InternalUser}Controller
+│   └── note-service/     :8083  — entity/{Note,NoteShare}, client/UserClient (Feign)
+├── frontend/             aplikasi web — belum dimulai, lihat frontend/README.md
+├── docs/                 seluruh dokumentasi — mulai dari docs/README.md
+└── docker-compose.yml
 ```
 
 Tiap service domain mengikuti lapisan yang sama: `entity` → `repository` → `dto` → `service` (interface) → `service/impl` (logika bisnis) → `controller` → `exception/GlobalExceptionHandler`. Controller hanya bergantung pada interface, tidak pernah pada `impl`.
+
+---
+
+## Dokumentasi
+
+| Dokumen | Isi |
+|---|---|
+| [`docs/README.md`](docs/README.md) | **Mulai di sini** — indeks semua dokumen dengan urutan baca per tujuan |
+| [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md) | Arsitektur, konsep, alur request, model otorisasi |
+| [`docs/FRONTEND-README.md`](docs/FRONTEND-README.md) | Paket serah-terima untuk membangun frontend |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Fase yang selesai, yang tersisa, dan celah yang diketahui |
+| [`docs/INTERVIEW-QA.md`](docs/INTERVIEW-QA.md) | Tanya-jawab keputusan desain |
+| [`docs/HANDOVER.md`](docs/HANDOVER.md) | Blueprint awal proyek ini |
