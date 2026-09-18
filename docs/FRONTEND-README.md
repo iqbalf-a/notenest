@@ -4,6 +4,10 @@ Paket serah-terima untuk siapa pun yang akan membangun frontend NoteNest di fold
 
 Semua yang tertulis di dalamnya dibaca langsung dari kode di `backend/`: entity JPA, controller, DTO, `GlobalExceptionHandler`, dan `JwtAuthFilter`. Tidak ada yang dikarang dari rencana di atas kertas.
 
+> **Branch ini memakai backend monolith.** Kontrak API-nya **sama persis** dengan branch `dev`
+> — base URL, path, body, status code, semuanya. Yang berbeda cuma berapa proses yang melayaninya
+> di balik layar, dan itu tidak terlihat dari sisi frontend. Dua selisih kecil ditandai di bawah.
+
 ---
 
 ## Isi paket
@@ -20,7 +24,7 @@ Semua yang tertulis di dalamnya dibaca langsung dari kode di `backend/`: entity 
 
 ## Urutan baca
 
-1. **Service Atlas** (±6 menit) — bentuk data dan siapa pemilik apa. Perhatikan perjalanan share: itu satu-satunya fitur yang melewati dua service.
+1. **Service Atlas** (±6 menit) — bentuk data dan siapa pemilik apa. Perhatikan perjalanan share: itu satu-satunya fitur yang menyeberangi batas domain. (Atlas menggambarkannya sebagai panggilan antar-service, sesuai branch `dev`; di sini panggilan itu terjadi di dalam satu proses.)
 2. **Frontend Brief** (±20 menit) — §1.6 (kontrak API) dan §1.8 (celah backend) yang paling sering dibuka ulang.
 3. **Design Handover** — kalau kamu yang mendesain layarnya.
 
@@ -47,8 +51,8 @@ Fase pertama berjalan dengan dummy data (MSW) dan tidak menyentuh backend. Dafta
 - [ ] **Tidak ada endpoint daftar tag.** Filter tag harus dibangun dari note yang sudah dimuat, atau berupa input bebas.
 - [ ] **`shared-with-me` tidak paginated dan tidak bisa dicari.** Dan kalau salah satu pemilik tidak punya profil, **seluruh daftar** gagal `404`.
 - [ ] **Tangani `403` terpisah dari `401`.** `401` = hapus token, ke `/login`. `403` = tidak berhak, **jangan logout**.
-- [ ] **`502` saat share** berarti user-service tidak terjangkau — bukan kesalahan input. Tawarkan coba lagi.
-- [ ] **Origin dev harus ada di `CORS_ALLOWED_ORIGINS`** gateway. Default hanya `http://localhost:5173`.
+- [ ] **`502` saat share tidak ada di branch ini.** Di `dev` status itu berarti user-service tidak terjangkau. Tetap tangani kalau kodemu harus jalan di kedua branch — biayanya satu baris.
+- [ ] **Origin dev harus ada di `CORS_ALLOWED_ORIGINS`.** Default hanya `http://localhost:5173`.
 - [ ] **Tidak ada refresh token.** Token berlaku 24 jam; setelah itu `401`.
 
 Uraian lengkap tiap celah ada di **§1.8** `FRONTEND-BRIEF.html`.
@@ -68,7 +72,9 @@ Uraian lengkap tiap celah ada di **§1.8** `FRONTEND-BRIEF.html`.
 | Styling | Tailwind v4 + token pastel (§2.7 brief) | Sama dengan prototipe Lovable; warna dan font diambil dari satu file token |
 | Tema | Pastel, terang saja; font Geist | Warna dari Lovable, font dari ian-portfolio; tema gelap belum didesain |
 
-Base URL saat penyambungan: `http://localhost:8080`. Jangan pernah memanggil port 8081–8083 langsung dari browser — `/internal/**` pun akan `403`.
+Base URL saat penyambungan: `http://localhost:8080` — satu-satunya port yang ada di branch ini.
+Di `dev` ada 8081–8083 untuk tiap service dan 8761 untuk Eureka; semuanya tidak untuk dipanggil
+browser. Endpoint `/internal/**` yang disebut di Atlas juga sudah tidak ada di sini.
 
 ---
 

@@ -180,6 +180,19 @@
 <body>
 <div class="wrap">
 
+<div style="margin:0 0 1.5rem;padding:.9rem 1.1rem;border-left:4px solid #b45309;background:#fffbeb;color:#3f3f46;font-size:.9rem;line-height:1.55;border-radius:.25rem">
+  <strong>Kamu sedang membaca branch <code>deploy/monolith</code>.</strong>
+  Dokumen ini menggambarkan arsitektur versi <code>dev</code>: tiga service domain terpisah,
+  masing-masing dengan schema sendiri, dan share yang menyeberang lewat Feign.
+  Di branch ini ketiganya satu aplikasi dengan satu schema, dan penyeberangan itu jadi
+  panggilan method biasa.
+  <br><br>
+  <strong>Kontrak API-nya tidak berubah</strong> &mdash; base URL, path, body, dan status code
+  sama persis, jadi seluruh bagian &ldquo;endpoint&rdquo; di halaman ini tetap akurat.
+  Dua selisih: endpoint <code>/internal/**</code> tidak ada di sini, dan status <code>502</code>
+  saat share tidak mungkin terjadi. Selengkapnya di <code>docs/DEPLOY-MONOLITH.md</code>.
+</div>
+
 <header class="mast">
   <p class="eyebrow">NoteNest · paket frontend · dibaca dari backend/</p>
   <h1>Frontend NoteNest</h1>
