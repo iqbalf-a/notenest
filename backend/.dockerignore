@@ -1,0 +1,4 @@
+# Berlaku saat build context-nya backend/ (dipakai monolith/Dockerfile).
+**/target/
+**/.idea/
+**/*.iml

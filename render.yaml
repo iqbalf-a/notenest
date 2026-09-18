@@ -1,0 +1,38 @@
+# Blueprint Render untuk build gabungan. Di dashboard Render:
+# New > Blueprint > pilih repo ini > pilih branch deploy/monolith.
+#
+# Database SENGAJA tidak didefinisikan di sini. Postgres gratis Render
+# kedaluwarsa 30 hari lalu dihapus beserta datanya - tidak cocok untuk
+# portfolio yang ingin terus online. Pakai Neon (gratis permanen, tanpa
+# kartu kredit) dan isi DB_URL/DB_USER/DB_PASSWORD secara manual.
+
+services:
+  - type: web
+    name: notenest-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: deploy/monolith
+
+    dockerfilePath: ./backend/monolith/Dockerfile
+    dockerContext: ./backend
+
+    healthCheckPath: /actuator/health
+
+    envVars:
+      # sync: false = tidak disimpan di repo; diisi lewat dashboard Render.
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+      # Base64, minimal 32 byte setelah didecode: openssl rand -base64 48
+      # Tidak memakai generateValue: nilai acak Render belum tentu Base64 yang sah,
+      # sedangkan JwtAuthFilter men-decode-nya sebagai Base64.
+      - key: JWT_SECRET
+        sync: false
+
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

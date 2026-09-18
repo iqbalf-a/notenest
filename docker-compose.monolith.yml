@@ -1,0 +1,65 @@
+# Versi gabungan: 1 aplikasi + 1 database, bukan 7 container.
+# Dipakai untuk membuktikan build yang akan dideploy benar-benar jalan,
+# sebelum didorong ke Render.
+#
+#   cp .env.example .env    # lalu isi nilainya
+#   docker compose -f docker-compose.monolith.yml up --build
+#
+# Susunan microservices yang asli tetap di docker-compose.yml - itu yang
+# dipakai untuk pengembangan sehari-hari.
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: notenest-mono-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - mono_postgres_data:/var/lib/postgresql/data
+    # Tidak ada ports: DB hanya dijangkau dari dalam network.
+    networks:
+      - notenest-mono
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      # Context-nya backend/, karena modul monolith mengompilasi source
+      # milik auth/user/note yang ada di folder sebelah.
+      context: ./backend
+      dockerfile: monolith/Dockerfile
+    container_name: notenest-mono-api
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+    ports:
+      - "8080:8080"
+    # Meniru batas free tier Render (512 MB / 0.1 CPU) supaya masalah memori
+    # ketahuan di laptop, bukan setelah dideploy.
+    mem_limit: 512m
+    cpus: 0.5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - notenest-mono
+
+networks:
+  notenest-mono:
+    driver: bridge
+    name: notenest-mono
+
+volumes:
+  mono_postgres_data:
+    name: notenest-mono-postgres-data
