@@ -14,7 +14,7 @@ services:
     region: singapore
     branch: deploy/monolith
 
-    dockerfilePath: ./backend/monolith/Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
 
     healthCheckPath: /actuator/health
