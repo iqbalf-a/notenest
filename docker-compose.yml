@@ -1,128 +1,62 @@
+# NoteNest di branch ini: 1 aplikasi + 1 database.
+#
+#   cp .env.example .env    # lalu isi nilainya
+#   docker compose up --build
+#
+# Bandingkan dengan branch dev, yang menjalankan 7 container (Eureka, Config
+# Server, Gateway, tiga service domain, dan Postgres).
+
 services:
 
   postgres:
-    image: postgres:16-alpine            # image resmi PostgreSQL, tidak perlu Dockerfile
+    image: postgres:16-alpine
     container_name: notenest-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: notenest
-      POSTGRES_PASSWORD: notenest123
-      POSTGRES_DB: notenest_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
-      - postgres_data:/var/lib/postgresql/data   # data disimpan di volume (permanen)
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      # Satu-satunya port non-gateway yang dibuka: dipakai saat menjalankan
-      # service dari IDE (profil lokal) sambil DB-nya tetap di Docker.
+      # Dibuka supaya bisa dilihat dari DBeaver/psql saat mengembangkan.
+      # Tutup baris ini kalau compose ini dipakai di server yang terekspos.
       - "5432:5432"
     networks:
-      - notenest-network
-    healthcheck:                         # cek DB siap sebelum service connect
-      test: ["CMD-SHELL", "pg_isready -U notenest -d notenest_db"]
+      - notenest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  eureka-server:
-    build: ./backend/eureka-server               # build dari Dockerfile di folder itu
-    container_name: notenest-eureka
+  api:
+    build: ./backend
+    container_name: notenest-api
     restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
     ports:
-      - "8761:8761"                      # dashboard Eureka, dibuka untuk dilihat manusia
-    networks:
-      - notenest-network
-
-  config-server:
-    build: ./backend/config-server
-    container_name: notenest-config
-    restart: unless-stopped
-    environment:
-      SPRING_PROFILES_ACTIVE: native,docker
-    volumes:
-      # config-repo di-mount, bukan di-copy ke image: ubah config tidak perlu rebuild.
-      - ./backend/config-repo:/config-repo:ro
-    networks:
-      - notenest-network
-
-  auth-service:
-    build: ./backend/auth-service
-    container_name: notenest-auth
-    restart: unless-stopped
-    environment:
-      SPRING_PROFILES_ACTIVE: docker     # aktifkan application-docker.properties
-      DB_URL: jdbc:postgresql://postgres:5432/notenest_db
-      DB_USER: notenest
-      DB_PASSWORD: notenest123
-      EUREKA_URL: http://eureka-server:8761/eureka/
-      JWT_SECRET: 5BA782B92CC5AC1A3DD2B4E29AE16DE9D677CBFA41E000BE3F2FEC63CEACDD86
-    depends_on:
-      postgres:
-        condition: service_healthy       # tunggu DB benar-benar siap
-      eureka-server:
-        condition: service_started
-    networks:
-      - notenest-network
-
-  user-service:
-    build: ./backend/user-service
-    container_name: notenest-user
-    restart: unless-stopped
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      DB_URL: jdbc:postgresql://postgres:5432/notenest_db
-      DB_USER: notenest
-      DB_PASSWORD: notenest123
-      EUREKA_URL: http://eureka-server:8761/eureka/
+      - "8080:8080"
+    # Meniru batas free tier Render (512 MB / 0.1 CPU) supaya masalah memori
+    # ketahuan di laptop, bukan setelah dideploy.
+    mem_limit: 512m
+    cpus: 0.5
     depends_on:
       postgres:
         condition: service_healthy
-      eureka-server:
-        condition: service_started
     networks:
-      - notenest-network
-
-  note-service:
-    build: ./backend/note-service
-    container_name: notenest-note
-    restart: unless-stopped
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      DB_URL: jdbc:postgresql://postgres:5432/notenest_db
-      DB_USER: notenest
-      DB_PASSWORD: notenest123
-      EUREKA_URL: http://eureka-server:8761/eureka/
-    depends_on:
-      postgres:
-        condition: service_healthy
-      eureka-server:
-        condition: service_started
-      # Tidak perlu menunggu user-service: Feign menanyakan alamatnya ke Eureka
-      # saat dipakai, bukan saat start. Share baru gagal kalau user-service
-      # memang sedang mati - dan itu dijawab 502, bukan crash saat boot.
-    networks:
-      - notenest-network
-
-  api-gateway:
-    build: ./backend/api-gateway
-    container_name: notenest-gateway
-    restart: unless-stopped
-    ports:
-      - "8080:8080"                      # satu-satunya pintu ke luar untuk API
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      EUREKA_URL: http://eureka-server:8761/eureka/
-      JWT_SECRET: 5BA782B92CC5AC1A3DD2B4E29AE16DE9D677CBFA41E000BE3F2FEC63CEACDD86
-      CORS_ALLOWED_ORIGINS: http://localhost:5173
-    depends_on:
-      eureka-server:
-        condition: service_started
-    networks:
-      - notenest-network
+      - notenest
 
 networks:
-  notenest-network:                      # 1 network privat untuk semua container
+  notenest:
     driver: bridge
-    name: notenest-network
+    name: notenest
 
 volumes:
-  postgres_data:                         # volume bernama: data DB tidak hilang saat container dihapus
+  postgres_data:
     name: notenest-postgres-data
