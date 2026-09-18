@@ -1,5 +1,14 @@
 # NoteNest — Handover: Membangun BE (mengikuti pola ShopNest)
 
+> **Dokumen historis — sengaja tidak diperbarui.**
+> Ini blueprint yang ditulis **sebelum** ada satu baris kode pun, dan menggambarkan bentuk
+> microservices yang sekarang ada di branch `dev`. Nilainya justru pada jarak antara rencana
+> dan hasil; menyuntingnya menghapus catatan itu.
+>
+> Branch ini (`deploy/monolith`) menjalankan backend sebagai **satu aplikasi**. Selisihnya
+> dengan blueprint ada di [`README.md`](README.md#selisih-handovermd-dengan-kode); alasan
+> arsitekturnya dirakit ulang ada di [`DEPLOY-MONOLITH.md`](DEPLOY-MONOLITH.md).
+
 Dokumen ini adalah blueprint untuk membangun backend **NoteNest** — aplikasi notes dengan fitur sharing, dibangun dengan arsitektur microservices yang sama persis dengan [`shopnest`](../../shopnest), tapi domain lebih kecil (3 service domain, bukan 4) supaya realistis diselesaikan sebagai portfolio piece.
 
 > Referensi struktur nyata: [`shopnest/auth-service`](../../shopnest/auth-service), [`shopnest/order-service`](../../shopnest/order-service) (contoh service dengan Feign client), [`shopnest/api-gateway`](../../shopnest/api-gateway), [`shopnest/docs/BUILD-ORDER.md`](../../shopnest/docs/BUILD-ORDER.md) (filosofi urutan membangun).

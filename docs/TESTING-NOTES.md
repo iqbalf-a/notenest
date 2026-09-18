@@ -1,6 +1,10 @@
-# Catatan Testing — NoteNest
+# Catatan Testing — NoteNest (branch `deploy/monolith`)
 
-Catatan unit testing dengan Mockito, ditambah satu test repository di H2. Ditulis untuk belajar + portfolio.
+Unit testing dengan Mockito, satu test repository di H2, dan satu test end-to-end yang
+menjalankan seluruh aplikasi. Ditulis untuk belajar + portfolio.
+
+> Di `dev`, test tersebar di tiga modul dan dijalankan tiga kali. Di sini semuanya satu
+> perintah: `cd backend && ./mvnw test`.
 
 ---
 
@@ -8,13 +12,30 @@ Catatan unit testing dengan Mockito, ditambah satu test repository di H2. Dituli
 
 | Lapisan | Diuji? | Alasan |
 |---|---|---|
-| **Service** (`*ServiceImpl`) | ✅ Mockito | Tempat logika bisnis: kepemilikan, share, terjemahan error Feign |
+| **Service** (`*ServiceImpl`) | ✅ Mockito | Tempat logika bisnis: kepemilikan, share, terjemahan error |
 | **Repository** — `NoteRepository` saja | ✅ `@DataJpaTest` + H2 | Satu-satunya repository dengan JPQL buatan tangan |
+| **Full context** (`@SpringBootTest`) | ✅ **baru di branch ini** | Perakitannya sendiri yang berisiko — lihat di bawah |
 | Repository lain | ❌ | Hanya derived query (`findByUserId`, dst.) — Spring Data yang menulis SQL-nya |
-| Controller (`MockMvc`) | ❌ | Controller hanya meneruskan header + body ke service |
-| Full context (`@SpringBootTest`) | ❌ | Butuh PostgreSQL dan Eureka hidup; mudah gagal karena lingkungan, bukan kode |
+| Controller (`MockMvc`) sendirian | ❌ | Sudah tercakup `ApiEndToEndTest` yang memanggilnya lewat HTTP |
 
-**Beda dengan ShopNest:** ShopNest melewatkan test repository sama sekali. NoteNest menambahkannya karena `searchOwnedNotes` bukan derived query — satu query melayani tiga kombinasi filter, memakai `left join` ke koleksi tag, dan butuh `countQuery` terpisah. Salah join di sana tidak akan ketahuan oleh test bermock, karena mock tidak pernah menjalankan query.
+**Kenapa `@SpringBootTest` sekarang ada, padahal di `dev` di-skip?**
+Di `dev` alasan melewatkannya kuat: ia butuh PostgreSQL **dan** Eureka hidup, jadi gampang
+gagal karena lingkungan, bukan karena kode. Di sini tidak ada Eureka, dan databasenya cukup
+H2 — biayanya tinggal beberapa detik.
+
+Dan justru di branch inilah test itu paling dibutuhkan. Merakit tiga aplikasi Spring jadi satu
+menciptakan kelas kesalahan yang tidak bisa dilihat unit test: bean terdaftar dua kali, rantai
+security yang tidak nyambung, filter yang tidak pernah terpasang. Semuanya hanya muncul saat
+context benar-benar di-start.
+
+Itu bukan teori. Dua bug nyata tertangkap justru oleh test ini saat branch dibangun:
+
+| Bug | Gejala | Sebabnya |
+|---|---|---|
+| Auditing mati | Setiap insert gagal: `created_at` NULL | `@EnableJpaAuditing` di kelas config terpisah, sementara `@EnableJpaRepositories` ditulis eksplisit → EntityManagerFactory dibangun lebih dulu |
+| Handler exception hilang | `404` muncul sebagai `500` | Pola exclude di pom ikut membuang `GlobalExceptionHandler` milik monolith sendiri |
+
+Keduanya lolos kompilasi dan lolos semua unit test.
 
 ---
 
@@ -25,16 +46,16 @@ Catatan unit testing dengan Mockito, ditambah satu test repository di H2. Dituli
 | **`@ExtendWith(MockitoExtension.class)`** | Aktifkan Mockito tanpa menyalakan Spring context → test jalan dalam milidetik |
 | **`@Mock`** | Dependency palsu (`NoteRepository`, `UserClient`) yang bisa diatur mau mengembalikan apa |
 | **`@InjectMocks`** | Suntik semua `@Mock` ke constructor class yang diuji (`NoteServiceImpl`) |
-| **`when(...).thenReturn(...)`** | Atur skenario normal |
-| **`when(...).thenThrow(...)`** | Atur skenario error — dipakai untuk mensimulasikan user-service membalas 404 atau mati |
-| **`verify(..., never())`** | Pastikan sesuatu **tidak** terjadi, mis. `save()` tidak dipanggil atau Feign tidak disentuh |
+| **`when(...).thenReturn(...)`** | Atur skenario — termasuk `Optional.empty()` untuk "tidak ketemu" |
+| **`verify(..., never())`** | Pastikan sesuatu **tidak** terjadi, mis. `save()` tidak dipanggil |
 | **`ArgumentCaptor`** | Tangkap objek yang dikirim ke `save()` untuk diperiksa isinya |
 | **`@DataJpaTest`** | Muat irisan JPA saja + database in-memory, tiap test di-rollback |
+| **`@SpringBootTest` + `@AutoConfigureMockMvc`** | Muat seluruh context, panggil API lewat `MockMvc` tanpa membuka port |
 
 **Pola tiap test (AAA — Arrange, Act, Assert)** dan nama `method_kondisi_hasil()`:
 ```java
 @Test
-void shareNote_byNonOwner_isForbiddenBeforeAnyFeignCall() {
+void shareNote_byNonOwner_isForbiddenBeforeAnyUserLookup() {
     // Arrange: note milik orang lain
     when(noteRepository.findById(noteId)).thenReturn(Optional.of(note(noteId, UUID.randomUUID())));
 
@@ -42,27 +63,47 @@ void shareNote_byNonOwner_isForbiddenBeforeAnyFeignCall() {
     assertThrows(ForbiddenException.class,
             () -> noteService.shareNote(noteId, UUID.randomUUID(), request));
 
-    // Assert: dan user-service tidak pernah ditanya
-    verify(userClient, never()).getUserByEmail(any());
+    // Assert: dan sisi user tidak pernah ditanya
+    verify(userClient, never()).findByEmail(any());
 }
 ```
 
 ---
 
-## Bagian terpenting: test error Feign
+## Bagian terpenting 1: batas note → user
 
-Menulis `@FeignClient` itu cuma annotation. Yang membuktikan paham Feign adalah **apa yang terjadi saat panggilannya gagal**. `NoteServiceImpl` membedakan dua jenis kegagalan, dan keduanya diuji:
+Di `dev`, bagian ini soal Feign: yang membuktikan paham Feign bukan menulis `@FeignClient`,
+tapi **apa yang terjadi saat panggilannya gagal**. `NoteServiceImpl` membedakan dua kegagalan:
 
-| Kegagalan | Cara disimulasikan | Yang diharapkan | Status ke client |
-|---|---|---|---|
-| Email tujuan tidak terdaftar | `thenThrow(mock(FeignException.NotFound.class))` | Diterjemahkan jadi `UserNotFoundException` berisi email-nya | `404` |
-| user-service mati / 5xx | `thenThrow(mock(FeignException.ServiceUnavailable.class))` | `FeignException` dibiarkan lewat apa adanya | `502` (oleh `GlobalExceptionHandler`) |
+| Kegagalan | Di `dev` | Di branch ini |
+|---|---|---|
+| Email tujuan tidak terdaftar | `FeignException.NotFound` → `UserNotFoundException` → `404` | `Optional.empty()` → `UserNotFoundException` → `404` |
+| user-service mati / 5xx | `FeignException` dibiarkan lewat → `502` | **tidak ada** — tidak ada jaringan yang bisa putus |
 
-Kenapa dibedakan: `404` adalah **kesalahan pemakai** (salah ketik email) dan pantas dijawab dengan pesan yang jelas. Service mati adalah **masalah infrastruktur** — kalau ikut diterjemahkan jadi `404`, client akan mengira email-nya salah padahal bukan.
+Test `shareNote_userServiceUnreachable_propagatesFeignException` karena itu **dihapus**, bukan
+diperbaiki. Menyimpannya dengan mock berarti menguji skenario yang tidak bisa terjadi.
 
-Di kedua kasus test juga memastikan `noteShareRepository.save()` tidak pernah dipanggil.
+Yang tersisa dan tetap penting: 404 harus tetap 404 dengan pesan yang berarti
+(`shareNote_targetEmailNotRegistered_becomesUserNotFound`), dan `save()` tidak boleh dipanggil.
 
-`FeignException.NotFound` dibuat pakai `mock(...)` karena constructor-nya butuh objek `Request` Feign yang merepotkan; mock cukup karena yang diperiksa hanya **tipe** exception-nya.
+Batas domainnya sendiri tidak hilang. `UserClient` tetap di-mock seperti dulu — `NoteServiceImpl`
+tidak tahu dan tidak peduli siapa yang mengisinya.
+
+## Bagian terpenting 2: rantai security
+
+`ApiEndToEndTest` menguji hal yang di `dev` dijaga proses terpisah (gateway), jadi tidak pernah
+punya test:
+
+| Test | Yang dibuktikan |
+|---|---|
+| `protectedEndpointRejectsRequestWithoutToken` | Tanpa token → `401`, bukan `200` |
+| `protectedEndpointRejectsInvalidToken` | Token ngawur → `401`, bukan `500` |
+| `tokenIsTranslatedIntoIdentityHeaders` | Klaim token jadi `X-User-Id` yang dibaca controller |
+| `clientSuppliedIdentityHeadersAreIgnored` | Header `X-User-Id` kiriman client **dibuang** |
+
+Yang terakhir itu paling berharga. Tanpa `HttpServletRequestWrapper` yang membuang header dari
+luar, siapa pun bisa mengaku jadi user lain hanya dengan menambah satu header — dan tidak ada
+satu pun unit test yang akan melihatnya.
 
 ---
 
@@ -72,63 +113,92 @@ Di kedua kasus test juga memastikan `noteShareRepository.save()` tidak pernah di
 ```
 Mockito cannot mock this class ... Could not modify all classes
 ```
-`byte-buddy` bawaan Spring Boot 3.4.6 belum kenal bytecode JDK terbaru. Fix yang sama dengan ShopNest, di `<properties>` tiap `pom.xml`:
+`byte-buddy` bawaan Spring Boot 3.4.6 belum kenal bytecode JDK terbaru. Di `<properties>`:
 ```xml
 <byte-buddy.version>1.18.12</byte-buddy.version>
 ```
+Di `dev` baris ini harus diulang di enam `pom.xml`; di sini cukup satu.
 
-### 2. `createdAt` null di `@DataJpaTest`
-`@DataJpaTest` hanya memuat irisan JPA, jadi `JpaConfig` (`@EnableJpaAuditing`) tidak ikut ter-scan dan auditing mati. `findNotesSharedWith` mengurutkan berdasarkan `createdAt`, jadi ini bukan kosmetik. Fix: `@Import(JpaConfig.class)` di class test.
+### 2. `createdAt` null — dua sebab berbeda
+Di `dev`: `@DataJpaTest` tidak men-scan `JpaConfig`, jadi auditing mati. Fix-nya
+`@Import(JpaConfig.class)`.
 
-### 3. Test repository tidak boleh butuh Eureka
-`src/test/resources/application.properties` di note-service mematikan discovery (`eureka.client.enabled=false`) dan memakai H2 mode PostgreSQL. Tanpa itu, test mencoba mendaftar ke Eureka yang tidak ada.
+Di sini **kebalikannya**. `@EnableJpaAuditing` menempel di `NoteNestApplication`, dan
+`@DataJpaTest` memakai kelas itu sebagai akar context — jadi auditing sudah aktif. Meng-import
+config auditing tambahan justru membuat bean `jpaAuditingHandler` terdaftar dua kali dan
+seluruh context gagal start:
+```
+BeanDefinitionOverrideException: Invalid bean definition with name 'jpaAuditingHandler'
+```
+
+### 3. `@DataJpaTest` tidak boleh butuh infrastruktur yang tidak ada
+`src/test/resources/application.properties` memakai H2 mode PostgreSQL. Di `dev` file ini juga
+harus mematikan discovery (`eureka.client.enabled=false`), kalau tidak test mencoba mendaftar
+ke Eureka yang tidak hidup. Di sini baris itu tidak perlu — tidak ada klien discovery di
+classpath.
+
+### 4. `jwt.secret` di test harus Base64 yang sah
+`ApiEndToEndTest` men-start context sungguhan, dan `JwtAuthFilter` men-decode secret sebagai
+Base64. Nilai seperti `"test-secret"` akan gagal saat request pertama, bukan saat startup —
+jadi gejalanya muncul jauh dari penyebabnya.
 
 ---
 
-## Ringkasan test per service
+## Ringkasan test
 
-**29 test, semua lulus** (terakhir dijalankan 2026-09-17).
+**36 test, semua lulus.**
 
-| Service | Test | Yang dicek |
-|---------|------|-------------|
-| **auth-service** (4) | `register_newEmail_savesHashedPasswordAndReturnsToken` | password di-hash, token dibuat |
+| Kelas | Test | Yang dicek |
+|---|---|---|
+| **`AuthServiceImplTest`** (4) | `register_newEmail_savesHashedPasswordAndReturnsToken` | password di-hash, token dibuat |
 | | `register_emailAlreadyTaken_throwsAndSavesNothing` | `EmailAlreadyExistsException`, `save()` tidak dipanggil |
 | | `login_validCredentials_returnsTokenForThatUser` | `authenticate()` dipanggil, token untuk user yang benar |
 | | `login_wrongPassword_propagatesBadCredentialsAndNeverIssuesToken` | `BadCredentialsException` diteruskan, token tidak dibuat |
-| **user-service** (6) | `getMyProfile_firstAccess_createsProfileFromTokenClaims` | profil dibuat dari header, bukan dari body |
+| **`ProfileServiceImplTest`** (6) | `getMyProfile_firstAccess_createsProfileFromTokenClaims` | profil dibuat dari header, bukan dari body |
 | | `getMyProfile_existingProfile_doesNotCreateAnother` | tidak ada profil ganda |
 | | `updateMyProfile_overwritesEditableFieldsOnly` | displayName/bio berubah, `email` tetap |
 | | `searchByEmail_excludesTheRequesterFromResults` | diri sendiri tidak muncul |
 | | `searchByEmail_blankQuery_returnsEmptyWithoutHittingDatabase` | query kosong tidak menyentuh DB |
-| | `getByEmail_unknownEmail_throwsProfileNotFound` | 404 yang nanti diterima Feign |
-| **note-service** (14) | `createNote_storesTagsLowercasedAndMarksResponseAsOwned` | normalisasi tag, `owned=true` |
+| | `getByEmail_unknownEmail_throwsProfileNotFound` | 404 yang nanti jadi `Optional.empty()` |
+| **`NoteServiceImplTest`** (13) | `createNote_storesTagsLowercasedAndMarksResponseAsOwned` | normalisasi tag, `owned=true` |
 | | `getNoteById_sharedWithRequester_isReadableButNotOwned` | penerima share boleh baca, `owned=false` |
 | | `getNoteById_neitherOwnerNorShared_isForbidden` | `403` |
 | | `getNoteById_unknownId_throwsNoteNotFound` | `404` |
 | | `updateNote_byNonOwner_isForbiddenAndChangesNothing` | `403`, tidak ada `save()` |
 | | `deleteNote_byNonOwner_isForbiddenAndDeletesNothing` | `403`, tidak ada `delete()` |
-| | `shareNote_resolvesTargetEmailThroughFeignAndSnapshotsIt` | Feign dipanggil, email disnapshot |
-| | `shareNote_targetEmailNotRegistered_translatesFeign404ToUserNotFound` | Feign 404 → `UserNotFoundException` |
-| | `shareNote_userServiceUnreachable_propagatesFeignException` | Feign 503 diteruskan → `502` |
-| | `shareNote_byNonOwner_isForbiddenBeforeAnyFeignCall` | cek pemilik sebelum Feign |
+| | `shareNote_resolvesTargetEmailThroughUserClientAndSnapshotsIt` | `UserClient` dipanggil, email disnapshot |
+| | `shareNote_targetEmailNotRegistered_becomesUserNotFound` | `Optional.empty()` → `UserNotFoundException` |
+| | `shareNote_byNonOwner_isForbiddenBeforeAnyUserLookup` | cek pemilik sebelum lookup |
 | | `shareNote_toSelf_isRejected` | `IllegalArgumentException` → `400` |
 | | `shareNote_sameTargetTwice_returnsExistingShareInsteadOfDuplicating` | idempoten |
 | | `getNotesSharedWithMe_looksUpEachOwnerOnlyOnce` | cache pemilik per request |
 | | `revokeShare_whenNotShared_throwsNoteNotFound` | `404` |
-| **NoteRepository** (5, H2) | `searchOwnedNotes_withoutFilters_returnsOnlyOwnNotesWithoutDuplicates` | `distinct` bekerja walau join ke tag |
+| **`NoteRepositoryTest`** (5, H2) | `searchOwnedNotes_withoutFilters_returnsOnlyOwnNotesWithoutDuplicates` | `distinct` bekerja walau join ke tag |
 | | `searchOwnedNotes_filterByTag_returnsOnlyMatchingNotes` | filter tag |
 | | `searchOwnedNotes_freeTextMatchesTitleAndContentCaseInsensitively` | pencarian teks |
 | | `searchOwnedNotes_supportsSortingAndPaging` | `Pageable` + `countQuery` |
 | | `findNotesSharedWith_returnsNotesOwnedByOthersThatWereSharedToThisUser` | join share → note |
+| **`ApiEndToEndTest`** (8, H2) | `contextLoads` | tidak ada bean ganda, seluruh perakitan bisa start |
+| | `registerIsPublicAndReturnsToken` | path publik lolos filter, token terbit |
+| | `protectedEndpointRejectsRequestWithoutToken` | `401` |
+| | `protectedEndpointRejectsInvalidToken` | `401`, bukan `500` |
+| | `tokenIsTranslatedIntoIdentityHeaders` | klaim token → `X-User-*` → controller |
+| | `clientSuppliedIdentityHeadersAreIgnored` | anti-spoofing |
+| | `shareResolvesTargetUserLocally` | alur share lengkap tanpa jaringan |
+| | `shareToUnknownEmailReturnsNotFound` | `404`, bukan `500` |
+
+Dibanding `dev` (29 test): `+8` dari `ApiEndToEndTest`, `−1` dari test Feign yang dihapus.
 
 ---
 
 ## Cara menjalankan
 
 ```bash
-cd backend/note-service
-./mvnw test                               # semua test di service itu
+cd backend
+./mvnw test                               # semua 36 test
 ./mvnw test -Dtest=NoteServiceImplTest    # satu class saja
+./mvnw test -Dtest=ApiEndToEndTest        # hanya yang end-to-end
 ```
 
-Ulangi di `backend/auth-service` dan `backend/user-service`. Tidak ada yang butuh Docker atau database hidup.
+Tidak ada yang butuh Docker atau database hidup. Di `dev`, perintah ini harus diulang di tiga
+folder service.

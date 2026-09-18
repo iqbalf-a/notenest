@@ -8,7 +8,9 @@ Aplikasi catatan dengan fitur berbagi (share), dibangun sebagai sistem **microse
 > Bentuk microservices yang dijelaskan di bawah ada di branch **`dev`**.
 > Apa saja yang berubah dan kenapa: [`docs/DEPLOY-MONOLITH.md`](docs/DEPLOY-MONOLITH.md).
 
-NoteNest adalah *sister project* dari [ShopNest](https://github.com/iqbalfirman/shopnest): arsitekturnya sama persis — service discovery, JWT diverifikasi di gateway, otorisasi berbasis kepemilikan, schema-per-service, panggilan antar-service lewat Feign, endpoint internal — tapi domainnya jauh lebih kecil (3 service domain, bukan 4). Tujuannya supaya backend **dan** frontend sama-sama bisa diselesaikan, bukan cuma backend-nya.
+NoteNest adalah *sister project* dari [ShopNest](https://github.com/iqbalfirman/shopnest): arsitekturnya sama persis — service discovery, JWT diverifikasi di satu pintu, otorisasi berbasis kepemilikan, schema-per-service, panggilan antar-service lewat Feign, endpoint internal — tapi domainnya jauh lebih kecil (3 domain, bukan 4). Tujuannya supaya backend **dan** frontend sama-sama bisa diselesaikan, bukan cuma backend-nya.
+
+Branch ini merakit ketiga domain itu jadi satu aplikasi. Yang hilang adalah infrastruktur antar-proses; batas domainnya tetap berdiri.
 
 ---
 
@@ -18,32 +20,27 @@ NoteNest adalah *sister project* dari [ShopNest](https://github.com/iqbalfirman/
                          ┌──────────────────┐
                          │ Client / Postman │
                          └────────┬─────────┘
-                                  │ (satu-satunya entry point publik)
-                          ┌───────▼────────┐
-                          │  API Gateway   │  :8080
-                          │  + JWT filter  │
-                          └───────┬────────┘
-              ┌───────────┬───────┴───────┐
-              ▼           ▼               ▼
-        ┌──────────┐┌──────────┐   ┌─────────────┐
-        │  Auth    ││  User    │   │  Note       │
-        │  :8081   ││  :8082   │   │  :8083      │
-        └────┬─────┘└────┬─────┘   └──────┬──────┘
-             │           │   ▲            │
-             │           │   │  Feign     │  (share note →
-             │           │   └────────────┘   resolve email → userId)
-             ▼           ▼                    ▼
-        ┌─────────────────────────────────────────────┐
-        │     PostgreSQL — satu schema per service    │
-        └─────────────────────────────────────────────┘
-
-        Semua service daftar ke Eureka Server (:8761).
-        Config terpusat tersedia via Config Server (:8888) + config-repo.
+                                  │
+                    ┌─────────────▼──────────────┐
+                    │   NoteNest          :8080  │
+                    │                            │
+                    │   JwtAuthFilter            │  verifikasi token,
+                    │         │                  │  pasang X-User-*
+                    │   ┌─────▼──────┐           │
+                    │   │  auth      │           │
+                    │   │  user   ◄──┼───────┐   │
+                    │   │  note   ───┼───────┘   │
+                    │   └────────────┘  UserClient│
+                    └─────────────┬──────────────┘
+                                  ▼
+                    ┌────────────────────────────┐
+                    │   PostgreSQL — satu schema │
+                    └────────────────────────────┘
 ```
 
-**Client → Gateway → Service** adalah satu-satunya jalur dari luar. Gateway memverifikasi JWT satu kali, lalu meneruskan identitas sebagai header `X-User-Id` / `X-User-Email` / `X-User-Role` / `X-User-Name`. Service di belakang tidak pernah melihat token — mereka percaya gateway, bukan client. Header `X-User-*` yang dikirim client sendiri dibuang lebih dulu, jadi tidak bisa dipalsukan.
+**Satu jalur masuk.** `JwtAuthFilter` memverifikasi JWT satu kali di depan, lalu meneruskan identitas sebagai header `X-User-Id` / `X-User-Email` / `X-User-Role` / `X-User-Name`. Controller di belakangnya tidak pernah melihat token. Header `X-User-*` yang dikirim client sendiri dibuang lebih dulu, jadi tidak bisa dipalsukan.
 
-**Service → Service** hanya lewat jaringan internal. `note-service` memanggil `user-service` lewat OpenFeign saat sebuah note dibagikan.
+**Batas antar domain dijaga di kode, bukan jaringan.** `noteservice` tidak pernah meng-import apa pun dari `userservice` — ia hanya tahu interface `UserClient`. Yang mengisinya adalah `LocalUserClient` di `common`, satu-satunya kelas yang melihat kedua sisi. Di `dev`, interface yang sama diisi proxy Feign lewat Eureka.
 
 ---
 
@@ -53,27 +50,31 @@ NoteNest adalah *sister project* dari [ShopNest](https://github.com/iqbalfirman/
 |---|---|
 | Language | Java 21 |
 | Framework | Spring Boot 3.4.6 |
-| Cloud / Microservices | Spring Cloud 2024.0.1 — Eureka, Gateway, OpenFeign, Config Server |
+| Cloud / Microservices | **tidak ada di branch ini** — di `dev`: Spring Cloud 2024.0.1 (Eureka, Gateway, OpenFeign, Config Server) |
 | Security | Spring Security, JWT (`jjwt` 0.12.5) |
-| Database | PostgreSQL 16 (schema-per-service) |
+| Database | PostgreSQL 16 (satu schema; di `dev`: schema-per-service) |
 | ORM | Spring Data JPA / Hibernate |
 | API Docs | springdoc-openapi |
-| Testing | JUnit 5 + Mockito |
+| Testing | JUnit 5 + Mockito, H2 untuk repository & end-to-end |
 | Containerization | Docker (multi-stage) + Docker Compose |
 | Build | Maven (wrapper disertakan) |
 
 ---
 
-## Modul
+## Paket
 
-| Modul | Port | Peran |
-|---|---|---|
-| `eureka-server` | 8761 | Service registry. Tidak bergantung pada siapa pun. |
-| `config-server` + `config-repo` | 8888 | Config bersama, mode `native` (folder lokal, bukan git). |
-| `api-gateway` | 8080 | Satu-satunya pintu publik. Verifikasi JWT, routing, CORS, pemblokiran endpoint internal. |
-| `auth-service` | 8081 | Register, login, penerbit JWT. |
-| `user-service` | 8082 | Profil user + pencarian user (untuk fitur share). Punya endpoint internal. |
-| `note-service` | 8083 | CRUD note, tag, dan share. Satu-satunya pemilik Feign client. |
+Satu aplikasi di port 8080. Batas domainnya dijaga di tingkat paket, bukan proses.
+
+| Paket | Peran |
+|---|---|
+| `common` | Verifikasi JWT, rantai security, CORS, handler exception, `LocalUserClient` |
+| `authservice` | Register, login, penerbit JWT. |
+| `userservice` | Profil user + pencarian user (untuk fitur share). |
+| `noteservice` | CRUD note, tag, dan share. Pemilik interface `UserClient`. |
+
+Di branch `dev`, keempatnya adalah enam modul Maven terpisah: `eureka-server` (8761),
+`config-server` (8888), `api-gateway` (8080), `auth-service` (8081), `user-service` (8082),
+`note-service` (8083).
 
 ---
 
@@ -82,19 +83,21 @@ NoteNest adalah *sister project* dari [ShopNest](https://github.com/iqbalfirman/
 ### Dengan Docker Compose (paling cepat)
 
 ```bash
+cp .env.example .env    # lalu isi nilainya
 docker compose up -d --build
 ```
 
-Yang terbuka ke host hanya:
-- `http://localhost:8080` — API (lewat gateway)
-- `http://localhost:8761` — dashboard Eureka
-- `localhost:5432` — PostgreSQL (supaya bisa menjalankan service dari IDE sambil DB tetap di Docker)
+Dua container: `api` dan `postgres`. Yang terbuka ke host:
+- `http://localhost:8080` — API
+- `localhost:5432` — PostgreSQL (supaya bisa dilihat dari DBeaver/psql)
 
-Service domain **tidak** punya port ke host. Itu disengaja: satu-satunya cara menyentuh mereka dari luar adalah lewat gateway.
+Container `api` dibatasi `mem_limit: 512m`, meniru free tier Render — masalah memori ketahuan
+di laptop, bukan setelah dideploy.
 
-Dokumentasi API interaktif (Scalar): **http://localhost:8080/docs.html** — ketiga service dalam satu halaman, bisa langsung mengirim request.
+Dokumentasi API interaktif (Scalar): **http://localhost:8080/docs.html** — satu spec,
+bisa langsung mengirim request.
 
-Langkah verifikasi end-to-end dengan dua akun: [`docs/DOCKER-STEPS.md`](docs/DOCKER-STEPS.md#bagian-4--verifikasi-end-to-end).
+Langkah verifikasi end-to-end dengan dua akun: [`docs/DOCKER-STEPS.md`](docs/DOCKER-STEPS.md#bagian-5--verifikasi-end-to-end).
 
 ### Manual (dari IDE)
 
@@ -129,7 +132,7 @@ Satu pengecualian: `NoteRepositoryTest` adalah `@DataJpaTest` di atas H2 (mode P
 
 ## Endpoint
 
-Semua lewat gateway (`http://localhost:8080`). Semua response memakai amplop yang sama:
+Semua di `http://localhost:8080`. Semua response memakai amplop yang sama:
 
 ```json
 { "success": true, "message": "Note created", "data": { } }
@@ -143,17 +146,18 @@ Semua lewat gateway (`http://localhost:8080`). Semua response memakai amplop yan
 | `POST` | `/api/auth/login` | `{email, password}` → JWT |
 | `GET` | `/api/auth/validate` | Cek token yang tersimpan masih hidup |
 
-### user-service — butuh token
+### Profil & pencarian user — butuh token
 
 | Method | Path | Keterangan |
 |---|---|---|
 | `GET` | `/api/users/me` | Profil sendiri. Dibuat otomatis saat pertama kali diakses. |
 | `PUT` | `/api/users/me` | `{displayName, bio, avatarUrl}` |
 | `GET` | `/api/users/search?email=` | Cari user untuk di-share (cocok sebagian, diri sendiri dibuang) |
-| `GET` | `/internal/users/{id}` | **Internal** — diblokir gateway, hanya untuk Feign |
-| `GET` | `/internal/users/by-email?email=` | **Internal** — resolve email → userId saat share |
 
-### note-service — butuh token
+Dua endpoint `/internal/users/**` yang ada di `dev` tidak ada di sini — itu pintu masuk untuk
+Feign, dan dari luar memang selalu dijawab `403`.
+
+### Catatan & share — butuh token
 
 | Method | Path | Keterangan |
 |---|---|---|
@@ -164,10 +168,10 @@ Semua lewat gateway (`http://localhost:8080`). Semua response memakai amplop yan
 | `PUT` | `/api/notes/{id}` | Pemilik saja |
 | `DELETE` | `/api/notes/{id}` | Pemilik saja |
 | `GET` | `/api/notes/{id}/shares` | Daftar penerima share. Pemilik saja. |
-| `POST` | `/api/notes/{id}/share` | `{targetEmail}` — memicu Feign ke user-service |
+| `POST` | `/api/notes/{id}/share` | `{targetEmail}` — memicu lookup lewat `UserClient` |
 | `DELETE` | `/api/notes/{id}/share/{userId}` | Cabut akses. Pemilik saja. |
 
-Dokumentasi interaktif: `/docs.html` (Scalar). Spec OpenAPI mentah tiap service: `/docs/specs/auth`, `/docs/specs/users`, `/docs/specs/notes`.
+Dokumentasi interaktif: `/docs.html` (Scalar). Spec OpenAPI mentah: `/v3/api-docs` — satu spec, bukan tiga.
 
 ---
 
@@ -190,19 +194,19 @@ Satu instance PostgreSQL, satu schema per service — service tidak pernah memba
 ## Keputusan desain
 
 **Profil dibuat saat dibutuhkan, bukan saat register.**
-`auth-service` tidak memanggil `user-service` sama sekali. Sebagai gantinya, `displayName` ikut sebagai klaim di JWT, gateway meneruskannya sebagai `X-User-Name`, dan `user-service` membuat profil sendiri saat `/api/users/me` pertama kali diakses. Konsekuensinya: tidak ada kemungkinan "user terdaftar tapi profilnya gagal dibuat" — masalah klasik yang biasanya butuh saga pattern untuk diselesaikan.
+Sisi auth tidak menyentuh sisi user sama sekali. Sebagai gantinya, `displayName` ikut sebagai klaim di JWT, `JwtAuthFilter` meneruskannya sebagai `X-User-Name`, dan profil dibuat saat `/api/users/me` pertama kali diakses. Di `dev` ini menghindari transaksi lintas service yang butuh saga pattern; di sini polanya dipertahankan supaya kedua branch berperilaku identik.
 
-**Email disalin ke `user_schema.profiles`.**
-Supaya pencarian user (fitur share) bisa dijawab `user-service` sendiri, tanpa memanggil balik `auth-service`. Salinan ini hanya dibaca, tidak pernah jadi sumber kebenaran untuk login.
+**Email disalin ke `profiles`.**
+Supaya pencarian user (fitur share) bisa dijawab sisi user sendiri, tanpa membaca tabel `users`. Salinan ini hanya dibaca, tidak pernah jadi sumber kebenaran untuk login.
 
 **Email penerima di-snapshot di `note_shares`.**
-Pola yang sama dipakai ShopNest untuk menyimpan nama & harga produk di `order_items`. Efeknya: menampilkan "note ini dibagikan ke siapa" tidak memicu satu pun panggilan Feign.
+Pola yang sama dipakai ShopNest untuk menyimpan nama & harga produk di `order_items`. Efeknya: menampilkan "note ini dibagikan ke siapa" tidak memicu satu pun lookup user.
 
-**404 dari Feign diterjemahkan, error lain dibiarkan lewat.**
-Share ke email yang tidak terdaftar → `UserNotFoundException` → 404 dengan pesan yang bisa dibaca orang. `user-service` mati → `FeignException` dibiarkan naik → 502. Keduanya masalah yang berbeda dan pantas dijawab berbeda.
+**"Tidak ketemu" adalah jawaban, bukan error.**
+`UserClient` mengembalikan `Optional`; yang memutuskan pesannya adalah pemanggil. Share ke email yang tidak terdaftar → `UserNotFoundException` → 404 dengan pesan yang bisa dibaca orang. Di `dev` ada satu kasus lagi — `user-service` mati → 502 — yang di sini mustahil karena tidak ada jaringan di antaranya.
 
-**Endpoint internal dijaga di gateway.**
-`/internal/**` sengaja didaftarkan sebagai route di gateway supaya filter sempat menolaknya dengan **403 yang jelas**, bukan 404 yang ambigu. Request tidak pernah benar-benar diteruskan.
+**Batas domain tanpa foreign key.**
+`notes.owner_id` menunjuk ke `users.id` tanpa FK, meski sekarang keduanya di schema yang sama dan secara teknis sudah bisa. Menambahkannya akan mengikat kedua domain di level database dan menghapus satu-satunya hal yang membuat pemisahannya masih bisa dikembalikan.
 
 ---
 
@@ -212,10 +216,10 @@ Share ke email yang tidak terdaftar → `UserNotFoundException` → 404 dengan p
 |---|---|---|
 | Share tidak realtime (harus refresh) | Di luar scope inti | WebSocket / Server-Sent Events |
 | Permission cuma `READ` | Cukup untuk menunjukkan konsep sharing; sudah berupa enum, jadi menambah level tidak mengubah bentuk tabel | READ / EDIT / ADMIN |
-| `/shared-with-me` gagal seluruhnya kalau `user-service` mati | Memilih jujur (502) daripada menampilkan daftar setengah jadi | Circuit breaker + fallback |
-| Satu instance PostgreSQL, schema-per-service | Sederhana untuk local dev | DB terpisah secara fisik per service |
-| Tidak ada circuit breaker / tracing / cache | Bukan fundamental untuk scope ini | Resilience4j, Zipkin, Redis |
-| Endpoint internal cuma dijaga di gateway | Di Compose, service domain tidak punya port ke host | Token service-to-service / mTLS |
+| `/shared-with-me` gagal seluruhnya kalau satu pemilik tidak punya profil | Belum diperbaiki — tercatat di ROADMAP | Kembalikan field pemilik `null` untuk item itu |
+| Backend dirakit jadi satu aplikasi | Free tier hanya memberi satu service 512 MB tanpa private networking | Bayar, atau VPS yang menjalankan `dev` apa adanya |
+| Satu schema, bukan schema-per-service | Satu aplikasi hanya punya satu konfigurasi JPA | `@Table(schema = ...)` per entity |
+| Tidak ada tracing / cache | Bukan fundamental untuk scope ini | Zipkin, Redis |
 | Tag dimuat lazy per note saat listing (N+1) | Jumlah note per user kecil | `@EntityGraph` atau batch fetching |
 
 ---
