@@ -2,10 +2,9 @@
 
 Folder ini berisi seluruh dokumentasi project. Halaman ini daftar isinya — mulai dari sini, bukan dari daftar file.
 
-> **Branch ini memakai backend monolith.**
-> Repo tetap monorepo (`backend/` + `frontend/` + `docs/`), tapi `backend/` di sini adalah
-> **satu aplikasi Spring Boot**, bukan 6 modul. Bentuk microservices-nya ada di branch **`dev`**.
-> Kenapa dan apa saja yang berubah: [`DEPLOY-MONOLITH.md`](DEPLOY-MONOLITH.md).
+> Dokumen di sini menggambarkan backend sebagai **satu aplikasi Spring Boot**.
+> Versi microservices-nya ada di branch `dev`; kenapa keduanya ada:
+> [`DEPLOY-MONOLITH.md`](DEPLOY-MONOLITH.md).
 
 > Untuk **menjalankan**: `cp .env.example .env` lalu `docker compose up --build`,
 > kemudian buka http://localhost:8080/docs.html.

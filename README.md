@@ -1,16 +1,16 @@
 # NoteNest
 
-Aplikasi catatan dengan fitur berbagi (share), dibangun sebagai sistem **microservices** dengan Spring Boot + Spring Cloud.
+Aplikasi catatan dengan fitur berbagi (share) — REST API dengan Spring Boot + PostgreSQL,
+dan frontend React di folder terpisah.
 
-> **Kamu sedang di branch `deploy/monolith`.**
-> Repo tetap monorepo, tapi `backend/` di branch ini adalah **satu aplikasi Spring Boot**,
-> bukan 6 modul — profil deploy untuk free tier yang cuma memberi satu service 512 MB.
-> Bentuk microservices yang dijelaskan di bawah ada di branch **`dev`**.
-> Apa saja yang berubah dan kenapa: [`docs/DEPLOY-MONOLITH.md`](docs/DEPLOY-MONOLITH.md).
+NoteNest adalah *sister project* dari [ShopNest](https://github.com/iqbalfirman/shopnest).
+Konsep yang dipelajari sama — JWT diverifikasi di satu pintu, otorisasi berbasis kepemilikan,
+batas domain yang tegas, snapshot data antar domain — tapi domainnya jauh lebih kecil
+(3 domain, bukan 4). Tujuannya supaya backend **dan** frontend sama-sama bisa diselesaikan,
+bukan cuma backend-nya.
 
-NoteNest adalah *sister project* dari [ShopNest](https://github.com/iqbalfirman/shopnest): arsitekturnya sama persis — service discovery, JWT diverifikasi di satu pintu, otorisasi berbasis kepemilikan, schema-per-service, panggilan antar-service lewat Feign, endpoint internal — tapi domainnya jauh lebih kecil (3 domain, bukan 4). Tujuannya supaya backend **dan** frontend sama-sama bisa diselesaikan, bukan cuma backend-nya.
-
-Branch ini merakit ketiga domain itu jadi satu aplikasi. Yang hilang adalah infrastruktur antar-proses; batas domainnya tetap berdiri.
+> Versi microservices-nya — Eureka, Config Server, API Gateway, Feign — ada di branch `dev`.
+> Alasan keduanya ada: [`docs/DEPLOY-MONOLITH.md`](docs/DEPLOY-MONOLITH.md).
 
 ---
 
@@ -21,26 +21,32 @@ Branch ini merakit ketiga domain itu jadi satu aplikasi. Yang hilang adalah infr
                          │ Client / Postman │
                          └────────┬─────────┘
                                   │
-                    ┌─────────────▼──────────────┐
-                    │   NoteNest          :8080  │
-                    │                            │
-                    │   JwtAuthFilter            │  verifikasi token,
-                    │         │                  │  pasang X-User-*
-                    │   ┌─────▼──────┐           │
-                    │   │  auth      │           │
-                    │   │  user   ◄──┼───────┐   │
-                    │   │  note   ───┼───────┘   │
+                    ┌─────────────▼───────────────┐
+                    │   NoteNest           :8080  │
+                    │                             │
+                    │   JwtAuthFilter             │  verifikasi token,
+                    │         │                   │  pasang X-User-*
+                    │   ┌─────▼──────┐            │
+                    │   │  auth      │            │
+                    │   │  user   ◄──┼────────┐   │
+                    │   │  note   ───┼────────┘   │
                     │   └────────────┘  UserClient│
-                    └─────────────┬──────────────┘
+                    └─────────────┬───────────────┘
                                   ▼
-                    ┌────────────────────────────┐
-                    │   PostgreSQL — satu schema │
-                    └────────────────────────────┘
+                    ┌─────────────────────────────┐
+                    │          PostgreSQL         │
+                    └─────────────────────────────┘
 ```
 
-**Satu jalur masuk.** `JwtAuthFilter` memverifikasi JWT satu kali di depan, lalu meneruskan identitas sebagai header `X-User-Id` / `X-User-Email` / `X-User-Role` / `X-User-Name`. Controller di belakangnya tidak pernah melihat token. Header `X-User-*` yang dikirim client sendiri dibuang lebih dulu, jadi tidak bisa dipalsukan.
+**Satu jalur masuk.** `JwtAuthFilter` memverifikasi JWT satu kali di depan, lalu meneruskan
+identitas sebagai header `X-User-Id` / `X-User-Email` / `X-User-Role` / `X-User-Name`.
+Controller di belakangnya tidak pernah melihat token. Header `X-User-*` yang dikirim client
+sendiri dibuang lebih dulu, jadi tidak bisa dipalsukan.
 
-**Batas antar domain dijaga di kode, bukan jaringan.** `noteservice` tidak pernah meng-import apa pun dari `userservice` — ia hanya tahu interface `UserClient`. Yang mengisinya adalah `LocalUserClient` di `common`, satu-satunya kelas yang melihat kedua sisi. Di `dev`, interface yang sama diisi proxy Feign lewat Eureka.
+**Batas antar domain dijaga di kode.** `noteservice` tidak pernah meng-import apa pun dari
+`userservice` — ia hanya tahu interface `UserClient`. Yang mengisinya adalah `LocalUserClient`
+di `common`, satu-satunya kelas yang melihat kedua sisi. Selama batas itu berdiri, ketiga
+domain bisa dipisah lagi tanpa menyentuh logika bisnis.
 
 ---
 
@@ -50,11 +56,10 @@ Branch ini merakit ketiga domain itu jadi satu aplikasi. Yang hilang adalah infr
 |---|---|
 | Language | Java 21 |
 | Framework | Spring Boot 3.4.6 |
-| Cloud / Microservices | **tidak ada di branch ini** — di `dev`: Spring Cloud 2024.0.1 (Eureka, Gateway, OpenFeign, Config Server) |
 | Security | Spring Security, JWT (`jjwt` 0.12.5) |
-| Database | PostgreSQL 16 (satu schema; di `dev`: schema-per-service) |
+| Database | PostgreSQL 16 |
 | ORM | Spring Data JPA / Hibernate |
-| API Docs | springdoc-openapi |
+| API Docs | springdoc-openapi + Scalar |
 | Testing | JUnit 5 + Mockito, H2 untuk repository & end-to-end |
 | Containerization | Docker (multi-stage) + Docker Compose |
 | Build | Maven (wrapper disertakan) |
@@ -63,18 +68,14 @@ Branch ini merakit ketiga domain itu jadi satu aplikasi. Yang hilang adalah infr
 
 ## Paket
 
-Satu aplikasi di port 8080. Batas domainnya dijaga di tingkat paket, bukan proses.
+Satu aplikasi di port 8080. Batas domainnya dijaga di tingkat paket.
 
 | Paket | Peran |
 |---|---|
 | `common` | Verifikasi JWT, rantai security, CORS, handler exception, `LocalUserClient` |
-| `authservice` | Register, login, penerbit JWT. |
-| `userservice` | Profil user + pencarian user (untuk fitur share). |
-| `noteservice` | CRUD note, tag, dan share. Pemilik interface `UserClient`. |
-
-Di branch `dev`, keempatnya adalah enam modul Maven terpisah: `eureka-server` (8761),
-`config-server` (8888), `api-gateway` (8080), `auth-service` (8081), `user-service` (8082),
-`note-service` (8083).
+| `authservice` | Register, login, penerbit JWT |
+| `userservice` | Profil user + pencarian user (untuk fitur share) |
+| `noteservice` | CRUD note, tag, dan share. Pemilik interface `UserClient` |
 
 ---
 
@@ -91,27 +92,29 @@ Dua container: `api` dan `postgres`. Yang terbuka ke host:
 - `http://localhost:8080` — API
 - `localhost:5432` — PostgreSQL (supaya bisa dilihat dari DBeaver/psql)
 
-Container `api` dibatasi `mem_limit: 512m`, meniru free tier Render — masalah memori ketahuan
+Container `api` dibatasi `mem_limit: 512m`, meniru batas free tier — masalah memori ketahuan
 di laptop, bukan setelah dideploy.
 
-Dokumentasi API interaktif (Scalar): **http://localhost:8080/docs.html** — satu spec,
-bisa langsung mengirim request.
+Dokumentasi API interaktif (Scalar): **http://localhost:8080/docs.html**, bisa langsung
+mengirim request.
 
-Langkah verifikasi end-to-end dengan dua akun: [`docs/DOCKER-STEPS.md`](docs/DOCKER-STEPS.md#bagian-5--verifikasi-end-to-end).
+Langkah verifikasi end-to-end dengan dua akun:
+[`docs/DOCKER-STEPS.md`](docs/DOCKER-STEPS.md#bagian-5--verifikasi-end-to-end).
 
-### Manual (dari IDE)
+### Dari IDE
 
-> Bagian ini berlaku di branch `dev`. **Di branch ini** cuma ada satu aplikasi, dan
-> konfigurasinya datang dari environment variable — tidak ada `application.properties`
-> yang perlu disalin:
->
-> ```bash
-> cp .env.example .env    # lalu isi nilainya
-> docker compose up --build
-> ```
->
-> Menjalankan dari IDE: set `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`
-> sebagai environment variable, lalu jalankan `NoteNestApplication`.
+Tidak ada `application.properties` yang perlu disalin — semua nilai datang dari environment
+variable. Set empat variabel ini, lalu jalankan `NoteNestApplication`:
+
+```
+DB_URL=jdbc:postgresql://localhost:5432/notenest_db
+DB_USER=notenest
+DB_PASSWORD=<password>
+JWT_SECRET=<hasil: openssl rand -base64 48>
+```
+
+`JWT_SECRET` harus Base64 yang sah — `JwtAuthFilter` men-decode-nya sebagai Base64, bukan teks
+biasa. Databasenya boleh memakai container `postgres` dari Compose.
 
 ### Test
 
@@ -119,14 +122,24 @@ Langkah verifikasi end-to-end dengan dua akun: [`docs/DOCKER-STEPS.md`](docs/DOC
 cd backend && ./mvnw test   # 36 test
 ```
 
-Semua test hidup di satu modul: 4 auth + 6 user + 18 note (13 service + 5 repository),
-plus 8 `ApiEndToEndTest` yang men-start seluruh context di H2 lalu memanggil API-nya
-sungguhan. Dua test khusus Feign dari branch `dev` disesuaikan — "user-service mati"
-tidak punya arti lagi kalau tidak ada jaringan di antaranya.
+| Kelas | Test | Jenis |
+|---|---|---|
+| `AuthServiceImplTest` | 4 | unit, Mockito |
+| `ProfileServiceImplTest` | 6 | unit, Mockito |
+| `NoteServiceImplTest` | 13 | unit, Mockito |
+| `NoteRepositoryTest` | 5 | `@DataJpaTest` + H2 |
+| `ApiEndToEndTest` | 8 | `@SpringBootTest` + H2 |
 
-Sebagian besar adalah unit test service-layer dengan Mockito — tidak butuh database maupun service lain yang hidup. Yang paling penting ada di `NoteServiceImplTest`: pelanggaran kepemilikan (403), dan jalur error saat note di-share ke email yang tidak terdaftar (`UserClient` menjawab `Optional` kosong, diterjemahkan jadi 404 dengan pesan yang berarti).
+Sebagian besar unit test service-layer — tidak butuh database hidup, jalan dalam milidetik.
+Yang paling penting ada di `NoteServiceImplTest`: pelanggaran kepemilikan (403), dan jalur
+error saat note di-share ke email yang tidak terdaftar (`UserClient` menjawab `Optional`
+kosong, diterjemahkan jadi 404 dengan pesan yang berarti).
 
-Satu pengecualian: `NoteRepositoryTest` adalah `@DataJpaTest` di atas H2 (mode PostgreSQL). `NoteRepository` memakai HQL yang ditulis tangan — satu-satunya bagian yang tidak bisa dibuktikan benar oleh test bermock — jadi query-nya dijalankan sungguhan untuk memastikan `distinct`, filter tag, pencarian teks, sorting, dan paging benar-benar bekerja.
+Dua pengecualian memakai H2. `NoteRepositoryTest` menjalankan HQL tulis tangan milik
+`NoteRepository` secara sungguhan — satu-satunya bagian yang tidak bisa dibuktikan benar oleh
+test bermock, karena mock tidak pernah mengeksekusi query. `ApiEndToEndTest` men-start seluruh
+context lalu memanggil API lewat HTTP: register → buat note → share → `shared-with-me`, plus
+penolakan token palsu dan header `X-User-*` palsu.
 
 ---
 
@@ -138,7 +151,7 @@ Semua di `http://localhost:8080`. Semua response memakai amplop yang sama:
 { "success": true, "message": "Note created", "data": { } }
 ```
 
-### auth-service — publik
+### Auth — publik
 
 | Method | Path | Keterangan |
 |---|---|---|
@@ -154,9 +167,6 @@ Semua di `http://localhost:8080`. Semua response memakai amplop yang sama:
 | `PUT` | `/api/users/me` | `{displayName, bio, avatarUrl}` |
 | `GET` | `/api/users/search?email=` | Cari user untuk di-share (cocok sebagian, diri sendiri dibuang) |
 
-Dua endpoint `/internal/users/**` yang ada di `dev` tidak ada di sini — itu pintu masuk untuk
-Feign, dan dari luar memang selalu dijawab `403`.
-
 ### Catatan & share — butuh token
 
 | Method | Path | Keterangan |
@@ -171,42 +181,57 @@ Feign, dan dari luar memang selalu dijawab `403`.
 | `POST` | `/api/notes/{id}/share` | `{targetEmail}` — memicu lookup lewat `UserClient` |
 | `DELETE` | `/api/notes/{id}/share/{userId}` | Cabut akses. Pemilik saja. |
 
-Dokumentasi interaktif: `/docs.html` (Scalar). Spec OpenAPI mentah: `/v3/api-docs` — satu spec, bukan tiga.
+Dokumentasi interaktif: `/docs.html` (Scalar). Spec OpenAPI mentah: `/v3/api-docs`.
 
 ---
 
 ## Skema database
 
-Satu instance PostgreSQL, satu schema per service — service tidak pernah membaca tabel milik service lain.
+Lima tabel, dibuat otomatis oleh Hibernate saat startup. Snapshot lengkapnya — termasuk
+indeks dan constraint — ada di [`docs/schema.sql`](docs/schema.sql).
 
-**`auth_schema.users`** — `id`, `email`, `password_hash`, `display_name`, `role`, `enabled`, `created_at`, `updated_at`
+**`users`** — `id`, `email`, `password_hash`, `display_name`, `role`, `enabled`, `created_at`, `updated_at`
 
-**`user_schema.profiles`** — `id`, `user_id`, `email`, `display_name`, `bio`, `avatar_url`, `created_at`, `updated_at`
+**`profiles`** — `id`, `user_id`, `email`, `display_name`, `bio`, `avatar_url`, `created_at`, `updated_at`
 
-**`note_schema.notes`** — `id`, `owner_id`, `title`, `content`, `created_at`, `updated_at`
-**`note_schema.note_tags`** — `note_id`, `tag`
-**`note_schema.note_shares`** — `id`, `note_id`, `shared_with_user_id`, `shared_with_email`, `permission`, `created_at`, `updated_at`
+**`notes`** — `id`, `owner_id`, `title`, `content`, `created_at`, `updated_at`
+**`note_tags`** — `note_id`, `tag`
+**`note_shares`** — `id`, `note_id`, `shared_with_user_id`, `shared_with_email`, `permission`, `created_at`, `updated_at`
 
-`user_id` dan `owner_id` bukan foreign key: service tidak berbagi tabel. Relasinya dijamin oleh JWT, bukan oleh constraint database.
+`profiles.user_id` dan `notes.owner_id` menunjuk ke `users.id` **tanpa foreign key**, dan itu
+disengaja — lihat bagian keputusan desain di bawah.
 
 ---
 
 ## Keputusan desain
 
 **Profil dibuat saat dibutuhkan, bukan saat register.**
-Sisi auth tidak menyentuh sisi user sama sekali. Sebagai gantinya, `displayName` ikut sebagai klaim di JWT, `JwtAuthFilter` meneruskannya sebagai `X-User-Name`, dan profil dibuat saat `/api/users/me` pertama kali diakses. Di `dev` ini menghindari transaksi lintas service yang butuh saga pattern; di sini polanya dipertahankan supaya kedua branch berperilaku identik.
+Sisi auth tidak menyentuh sisi user sama sekali. Sebagai gantinya, `displayName` ikut sebagai
+klaim di JWT, `JwtAuthFilter` meneruskannya sebagai `X-User-Name`, dan profil dibuat saat
+`/api/users/me` pertama kali diakses. Konsekuensinya: register tidak pernah bisa gagal separuh
+jalan — tidak ada keadaan "user terdaftar tapi profilnya tidak".
 
 **Email disalin ke `profiles`.**
-Supaya pencarian user (fitur share) bisa dijawab sisi user sendiri, tanpa membaca tabel `users`. Salinan ini hanya dibaca, tidak pernah jadi sumber kebenaran untuk login.
+Supaya pencarian user (fitur share) bisa dijawab sisi user sendiri, tanpa membaca tabel `users`.
+Salinan ini hanya dibaca, tidak pernah jadi sumber kebenaran untuk login.
 
 **Email penerima di-snapshot di `note_shares`.**
-Pola yang sama dipakai ShopNest untuk menyimpan nama & harga produk di `order_items`. Efeknya: menampilkan "note ini dibagikan ke siapa" tidak memicu satu pun lookup user.
+Pola yang sama dipakai ShopNest untuk menyimpan nama & harga produk di `order_items`. Efeknya:
+menampilkan "note ini dibagikan ke siapa" tidak memicu satu pun lookup user.
 
 **"Tidak ketemu" adalah jawaban, bukan error.**
-`UserClient` mengembalikan `Optional`; yang memutuskan pesannya adalah pemanggil. Share ke email yang tidak terdaftar → `UserNotFoundException` → 404 dengan pesan yang bisa dibaca orang. Di `dev` ada satu kasus lagi — `user-service` mati → 502 — yang di sini mustahil karena tidak ada jaringan di antaranya.
+`UserClient` mengembalikan `Optional`; yang memutuskan pesannya adalah pemanggil. Share ke email
+yang tidak terdaftar → `UserNotFoundException` → 404 dengan pesan yang bisa dibaca orang.
+
+**Cek kepemilikan sebelum lookup user.**
+Bukan sekadar hemat: kalau urutannya terbalik, siapa pun dengan token sah bisa memakai endpoint
+share pada note orang lain untuk menguji apakah sebuah email terdaftar. Urutan ini dikunci oleh
+test `shareNote_byNonOwner_isForbiddenBeforeAnyUserLookup`.
 
 **Batas domain tanpa foreign key.**
-`notes.owner_id` menunjuk ke `users.id` tanpa FK, meski sekarang keduanya di schema yang sama dan secara teknis sudah bisa. Menambahkannya akan mengikat kedua domain di level database dan menghapus satu-satunya hal yang membuat pemisahannya masih bisa dikembalikan.
+`notes.owner_id` menunjuk ke `users.id` tanpa FK, meski secara teknis sudah bisa dibuat.
+Menambahkannya akan mengikat kedua domain di level database dan menghapus satu-satunya hal yang
+membuat ketiganya masih bisa dipisah lagi tanpa migrasi data.
 
 ---
 
@@ -217,8 +242,8 @@ Pola yang sama dipakai ShopNest untuk menyimpan nama & harga produk di `order_it
 | Share tidak realtime (harus refresh) | Di luar scope inti | WebSocket / Server-Sent Events |
 | Permission cuma `READ` | Cukup untuk menunjukkan konsep sharing; sudah berupa enum, jadi menambah level tidak mengubah bentuk tabel | READ / EDIT / ADMIN |
 | `/shared-with-me` gagal seluruhnya kalau satu pemilik tidak punya profil | Belum diperbaiki — tercatat di ROADMAP | Kembalikan field pemilik `null` untuk item itu |
-| Backend dirakit jadi satu aplikasi | Free tier hanya memberi satu service 512 MB tanpa private networking | Bayar, atau VPS yang menjalankan `dev` apa adanya |
-| Satu schema, bukan schema-per-service | Satu aplikasi hanya punya satu konfigurasi JPA | `@Table(schema = ...)` per entity |
+| Tidak ada refresh token | Satu access token (24 jam) cukup untuk scope ini | Refresh token + rotasi |
+| `ddl-auto=update`, bukan migrasi | Cukup untuk dev dan demo | Flyway |
 | Tidak ada tracing / cache | Bukan fundamental untuk scope ini | Zipkin, Redis |
 | Tag dimuat lazy per note saat listing (N+1) | Jumlah note per user kecil | `@EntityGraph` atau batch fetching |
 
@@ -229,13 +254,13 @@ Pola yang sama dipakai ShopNest untuk menyimpan nama & harga produk di `order_it
 ```
 notenest/
 ├── backend/                         :8080 — satu aplikasi Spring Boot
-│   ├── pom.xml                      satu modul, tanpa Spring Cloud
+│   ├── pom.xml
 │   ├── Dockerfile
 │   └── src/main/java/com/notenest/
 │       ├── NoteNestApplication.java
-│       ├── common/                  lapisan perakitan — hanya ada di branch ini
-│       │   ├── security/            JwtAuthFilter (servlet), SecurityConfig
-│       │   ├── exception/           GlobalExceptionHandler gabungan
+│       ├── common/
+│       │   ├── security/            JwtAuthFilter, SecurityConfig
+│       │   ├── exception/           GlobalExceptionHandler
 │       │   ├── config/              CorsConfig
 │       │   ├── client/              LocalUserClient
 │       │   └── dto/                 ApiResponse
@@ -248,10 +273,10 @@ notenest/
 └── render.yaml           blueprint deploy
 ```
 
-Di branch `dev`, `backend/` berisi 6 modul Maven terpisah (`eureka-server`,
-`config-server`, `api-gateway`, `auth-service`, `user-service`, `note-service`).
-
-Tiap service domain mengikuti lapisan yang sama: `entity` → `repository` → `dto` → `service` (interface) → `service/impl` (logika bisnis) → `controller` → `exception/GlobalExceptionHandler`. Controller hanya bergantung pada interface, tidak pernah pada `impl`.
+Tiap paket domain mengikuti lapisan yang sama: `entity` → `repository` → `dto` → `service`
+(interface) → `service/impl` (logika bisnis) → `controller`. Controller hanya bergantung pada
+interface, tidak pernah pada `impl`. Penanganan exception terpusat di
+`common/exception/GlobalExceptionHandler`.
 
 ---
 
@@ -261,6 +286,7 @@ Tiap service domain mengikuti lapisan yang sama: `entity` → `repository` → `
 |---|---|
 | [`docs/README.md`](docs/README.md) | **Mulai di sini** — indeks semua dokumen dengan urutan baca per tujuan |
 | [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md) | Arsitektur, konsep, alur request, model otorisasi |
+| [`docs/DEPLOY-MONOLITH.md`](docs/DEPLOY-MONOLITH.md) | Cara deploy ke free tier, dan kenapa bentuknya seperti ini |
 | [`docs/FRONTEND-README.md`](docs/FRONTEND-README.md) | Paket serah-terima untuk membangun frontend |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Fase yang selesai, yang tersisa, dan celah yang diketahui |
 | [`docs/INTERVIEW-QA.md`](docs/INTERVIEW-QA.md) | Tanya-jawab keputusan desain |
