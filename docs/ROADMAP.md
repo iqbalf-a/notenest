@@ -83,15 +83,30 @@ NoteNest started with it.
 
 ---
 
-## Phase 5 — Deployment ⏳ IN PROGRESS *(this branch's reason for existing)*
+## Phase 5 — Deployment ✅ LIVE on Railway *(this branch's reason for existing)*
+
+Live at **https://notenest-production-8997.up.railway.app** — API docs at `/docs.html`.
 
 - [x] Survey free tiers — Render, Railway, Fly.io, Koyeb, Northflank, Oracle Cloud
 - [x] Merge the backend into one deployable application
 - [x] `render.yaml` blueprint
-- [ ] Create the Neon database and fill in `DB_URL` / `DB_USER` / `DB_PASSWORD`
-- [ ] First deploy to Render, confirm `/actuator/health` responds
-- [ ] Keep-alive ping every ~14 min (cron-job.org / UptimeRobot) — 730 h/month fits the 750 h quota
+- [x] Deploy to Railway: Postgres plugin + Docker build from `backend/Dockerfile`
+      (service Root Directory must be `backend`, or Railway falls back to Railpack
+      and the build fails in ~15 seconds)
+- [x] Verify the Docker build — Railway builds the same `backend/Dockerfile`, so the
+      image is proven even though `docker compose up --build` was never run locally
+- [x] Verify end to end against real PostgreSQL — 20/20 checks pass. This is what
+      caught the `lower(bytea)` bug that all 36 tests missed.
+- [ ] Remove three stray variables copied from the Postgres service into `notenest`:
+      `DATABASE_URL` (resolves to a broken self-referencing URL), `SSL_CERT_DAYS`,
+      `RAILWAY_DEPLOYMENT_DRAINING_SECONDS`
 - [ ] Point `CORS_ALLOWED_ORIGINS` at the deployed frontend
+- [ ] Before the trial runs out: move to Render + Neon for a permanent home
+      (`render.yaml` is ready; only the way `DB_URL` is filled in differs)
+
+**Railway is a trial, not a free tier.** $5 one-off, ~3–4 weeks for one Java service
+plus Postgres. Render's 750 h/month covers one always-on service permanently, with
+Neon for the database — Render's own free Postgres expires after 30 days.
 
 ---
 
@@ -111,7 +126,7 @@ NoteNest started with it.
 | `shared-with-me` fails entirely if one owner's profile is missing | A user who shared notes but never opened `/api/users/me` has no profile → `UserNotFoundException` → whole list returns `404` | Fall back to `null` owner fields instead of throwing |
 | Share target must have opened the app once | Profiles are created lazily, so a freshly registered user who never called `/api/users/me` cannot be found by email | Frontend calls `/api/users/me` right after login (cheap, and the brief requires it) |
 | Profile email/name can drift from auth | Copied from token claims at first access; auth has no "change email" today, so harmless for now | Refresh on every `/me` call |
-| Docker build unverified on this branch | Might fail on something the Maven build doesn't catch | Run `docker compose up --build` once |
+| The `lower(bytea)` query bug is still present on `dev` | `GET /api/notes` returns 500 against real PostgreSQL there too; its ROADMAP still lists end-to-end verification as open | Port the `cast(:q as string)` fix from this branch |
 | `ddl-auto=update` against a deployed database | Fine for a demo, risky for anything else | Flyway |
 
 ## Known deliberate simplifications
