@@ -52,8 +52,8 @@ NoteNest started with it.
 - [x] `spring-boot-starter-actuator`, `/actuator/health` as the health check target
 - [x] **Verified end-to-end** — automated as `ApiEndToEndTest`, run on every `./mvnw test`
 - [x] Container memory limit mirroring the free tier (512 MB)
-- [ ] **Verify the Docker build itself on this branch** — the Maven build and the full Spring
-      context are green, but `docker compose up --build` has not been run since the restructure
+- [x] Docker build verified — Railway builds this same `Dockerfile` on every push
+      (`docker compose up --build` has still never been run locally; Docker Desktop was down)
 
 ---
 
